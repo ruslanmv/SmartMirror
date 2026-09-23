@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible SmartMirror problem
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction
+      description: Provide minimal reproducible steps. Do not attach sensitive body/wardrobe images.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: SmartMirror version/commit
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Backend/API
+        - HomePilot integration
+        - OllaBridge integration
+        - Echo Show client
+        - Companion client
+        - Other

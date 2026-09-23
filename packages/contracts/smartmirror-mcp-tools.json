@@ -1,0 +1,17 @@
+{
+  "schema_version": "smartmirror.mcp-tools/v1",
+  "tools": [
+    {
+      "name": "hp.smartmirror.wardrobe_list",
+      "required": []
+    },
+    {
+      "name": "hp.smartmirror.style_suggest",
+      "required": ["prompt"]
+    },
+    {
+      "name": "hp.smartmirror.tryon_create",
+      "required": ["outfit_id", "body_capture_ref"]
+    }
+  ]
+}
