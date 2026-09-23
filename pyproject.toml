@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "smartmirror"
+version = "0.1.0"
+description = "AI wardrobe stylist and virtual try-on service for HomePilot and OllaBridge."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Ruslan Magana Vsevolodovna" }]
+dependencies = [
+  "fastapi>=0.110,<1",
+  "uvicorn[standard]>=0.29,<1",
+  "pydantic>=2.7,<3",
+  "pydantic-settings>=2.2,<3",
+  "sqlalchemy>=2.0,<3",
+  "psycopg[binary]>=3.1,<4",
+  "pgvector>=0.3,<1",
+  "alembic>=1.13,<2",
+  "httpx>=0.27,<1",
+  "boto3>=1.34,<2",
+  "python-multipart>=0.0.9,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "pytest-asyncio>=0.23,<1",
+  "ruff>=0.5,<1",
+  "mypy>=1.10,<2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["smartmirror", "integrations", "services"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
