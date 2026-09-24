@@ -133,6 +133,17 @@ Screens pair the same way the 3D Avatar Chatbot does, with two flows on
 | `OLLABRIDGE_PAIRING_FLOW` | `device` | `code` makes typing the default tab |
 | `OLLABRIDGE_PAIRING_PATH` | `/pair` | code-entry endpoint |
 | `SMARTMIRROR_SESSION_SECRET` | required outside demo | ≥ 32 characters; seals both cookies |
+| `OLLABRIDGE_STYLIST_MODEL` | discover `persona:stylist--…` | force a HomePilot persona for the stylist |
+
+## Stylist persona
+
+`/api/stylist/chat` asks the owner's HomePilot persona (imported from
+`integrations/homepilot/personas/stylist.hpersona`) through OllaBridge's
+OpenAI-compatible `/v1/chat/completions`, non-streaming, with
+`X-Client-Type: smart-mirror`. The wardrobe tools choose the outfit first; its
+owned items go to the persona as an "Owned items" block so it never invents
+clothes. Replies are shown on the stylist screen and read aloud (by Alexa inside
+an Alexa session). Settings → Stylist picks the persona and toggles reading aloud.
 
 See `.env.example`. All settings are server-only; nothing uses `NEXT_PUBLIC_`.
 

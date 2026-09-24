@@ -26,7 +26,8 @@ export type IconName =
   | "chevron-left"
   | "chevron-right"
   | "external"
-  | "trash";
+  | "trash"
+  | "speaker";
 
 const PATHS: Record<IconName, ReactNode> = {
   sparkle: (
@@ -92,6 +93,12 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   refresh: <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4" />,
+  speaker: (
+    <>
+      <path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z" />
+      <path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11" />
+    </>
+  ),
   shield: <path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z" />,
   monitor: (
     <>

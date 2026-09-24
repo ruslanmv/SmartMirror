@@ -29,6 +29,10 @@ export interface MirrorSettings {
   showClock: boolean;
   /** Enter full screen after this many idle minutes on the home screen (0 = never). */
   idleMinutes: number;
+  /** HomePilot persona model the stylist talks through; null = discover "stylist". */
+  stylistModel: string | null;
+  /** Read the stylist's answer aloud. */
+  speakReplies: boolean;
 }
 
 export const DEFAULT_SETTINGS: MirrorSettings = {
@@ -43,6 +47,8 @@ export const DEFAULT_SETTINGS: MirrorSettings = {
   plaqueSubtitle: "",
   showClock: false,
   idleMinutes: 0,
+  stylistModel: null,
+  speakReplies: true,
 };
 
 export const ART_STYLES: Array<{ id: ArtStyle; label: string; medium: string }> = [

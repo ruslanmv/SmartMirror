@@ -10,6 +10,8 @@ All notable changes to SmartMirror will be documented here.
   "type a code" fallback (`/pair`), SmartMirror client identity, sealed pending
   pairing cookie, paired-screen card with "Forget this screen".
 - Stylist persona template for HomePilot (`integrations/homepilot/personas`).
+- Stylist answers from the owner's HomePilot persona (OllaBridge `/v1/chat/completions`),
+  grounded in the owned items of the top outfit, read aloud; Settings → Stylist.
 - `apps/web`: web-first Next.js SmartMirror UI for Vercel (home, stylist, wardrobe,
   capture, try-on, recent looks, pairing) with D-pad spatial navigation.
 - Echo Show 21 simulator (`/simulator/*`) with three device profiles, live capability

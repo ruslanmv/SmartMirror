@@ -26,7 +26,7 @@ export class BffError extends Error {
   }
 }
 
-function ollabridgeToken(config: ServerConfig, session: SessionData | null): string {
+export function ollabridgeToken(config: ServerConfig, session: SessionData | null): string {
   if (session?.kind === "device" && session.deviceToken) return session.deviceToken;
   if (session?.kind === "owner" && config.ollabridge.ownerToken) return config.ollabridge.ownerToken;
   throw new BffError("Pair this screen to continue", 401, "pairing_required");

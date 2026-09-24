@@ -3,10 +3,11 @@
 import { downscaleImage } from "@smartmirror/device-capabilities";
 import { Button, Chip, Icon, buttonClass } from "@smartmirror/ui";
 import Link from "next/link";
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useToast } from "@/components/Toast";
+import { ApiError, api } from "@/lib/api";
 import { useDevice } from "@/lib/capabilities";
 import { ART_STYLES, FRAMES, resetSettings, usePortraitPhoto, useSettings, writePortraitPhoto, type PaintingSource } from "@/lib/settings";
 import { useCapture, useLooks } from "@/lib/use-local";
@@ -66,6 +67,8 @@ export default function SettingsPage() {
               <Toggle on={settings.liveMirror} onChange={(v) => update({ liveMirror: v })} />
             </Row>
           </Section>
+
+          <StylistSection />
 
           <Section title="Fill screen" hint="Full-screen mode for a wall-mounted Echo Show.">
             <Row label="Show">
@@ -239,5 +242,51 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
       <span className="settings-switch__track" aria-hidden="true" />
       {on ? "On" : "Off"}
     </button>
+  );
+}
+
+/** Which HomePilot persona the stylist speaks through, and whether it reads answers aloud. */
+function StylistSection() {
+  const { settings, update } = useSettings();
+  const [personas, setPersonas] = useState<{ id: string; name: string }[] | null>(null);
+  const [suggested, setSuggested] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .stylistPersonas()
+      .then((r) => {
+        setPersonas(r.personas);
+        setSuggested(r.suggested);
+      })
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Could not load personas"));
+  }, []);
+
+  const current = settings.stylistModel ?? suggested;
+  return (
+    <Section title="Stylist" hint="Answers come from a persona on your own HomePilot, through OllaBridge.">
+      <Row
+        label="Persona"
+        hint={
+          error ??
+          (personas && !personas.length
+            ? "No persona is published yet. Import stylist.hpersona in HomePilot and publish it with the alias “stylist”."
+            : "Pick who answers. “Automatic” uses the persona published as “stylist”.")
+        }
+      >
+        <Chip pressed={settings.stylistModel === null} onClick={() => update({ stylistModel: null })}>
+          Automatic
+        </Chip>
+        {(personas ?? []).map((p) => (
+          <Chip key={p.id} pressed={settings.stylistModel === p.id} onClick={() => update({ stylistModel: p.id })}>
+            {p.name}
+            {p.id === current && settings.stylistModel === null ? " ✓" : ""}
+          </Chip>
+        ))}
+      </Row>
+      <Row label="Read answers aloud" hint="On an Echo Show inside Alexa, Alexa speaks the answer.">
+        <Toggle on={settings.speakReplies} onChange={(v) => update({ speakReplies: v })} />
+      </Row>
+    </Section>
   );
 }

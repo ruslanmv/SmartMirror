@@ -23,6 +23,8 @@ export interface ServerConfig {
     pairingPath: string;
     /** Primary pairing flow shown on the screen. */
     pairingFlow: "device" | "code";
+    /** Stylist persona model id; null = discover `persona:stylist--…`. */
+    stylistModel: string | null;
   };
 }
 
@@ -47,6 +49,7 @@ export function getConfig(): ServerConfig {
     mcpServer: env("OLLABRIDGE_MCP_SERVER") ?? "smartmirror",
     pairingPath: env("OLLABRIDGE_PAIRING_PATH") ?? "/pair",
     pairingFlow: env("OLLABRIDGE_PAIRING_FLOW") === "code" ? ("code" as const) : ("device" as const),
+    stylistModel: env("OLLABRIDGE_STYLIST_MODEL"),
   };
   const smartmirrorApiUrl = trimSlash(env("SMARTMIRROR_API_URL"));
 

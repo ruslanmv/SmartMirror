@@ -176,7 +176,10 @@ Each item lists what changes, the flag, the additive guarantee, the tests and th
 - **Tests:** recorded-response BFF tests (start, pending, approved, expired; `/pair` ok, expired, not-linked);
   Playwright: pair in the simulator; assert no token in any response body, the HTML or JS bundles.
 
-#### W-7 · Stylist chat on Plane A (M1a)
+#### W-7 · Stylist chat on Plane A (M1a) — ✅ done
+> Built as specified. The persona answer sits above the outfits; when the wardrobe tools
+> are not connected yet (before M1b) the persona still answers, marked as general advice.
+> Settings → Stylist chooses the persona and reading aloud. Tests: `apps/web/test/stylist.test.ts`.
 - New BFF route `/api/stylist/chat` → `POST /v1/chat/completions`, `model: persona:<stylist>`,
   `X-Client-Type: smart-mirror`, **non-streaming** (relay streaming returns 501).
 - Persona discovery: `GET /v1/models`, pick the id whose alias starts with `stylist`; the owner can change it in Settings.

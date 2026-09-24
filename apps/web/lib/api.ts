@@ -111,6 +111,18 @@ export const api = {
     request<{ status: "pending" | "approved" | "expired"; kind?: string; warning?: string }>("/api/session/pair/poll", {
       method: "POST",
     }),
+  stylistChat: (input: {
+    prompt: string;
+    items?: { id: string; name: string; category?: string; color?: string }[];
+    history?: { role: "user" | "assistant"; content: string }[];
+    model?: string | null;
+  }) =>
+    request<{ reply: string; persona: { id: string; name: string }; grounded: boolean }>("/api/stylist/chat", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  stylistPersonas: () =>
+    request<{ personas: { id: string; name: string }[]; suggested: string | null }>("/api/stylist/personas"),
   pairCancel: () => request<{ ok: true }>("/api/session/pair/poll", { method: "DELETE" }),
   unpair: () => request<{ ok: true }>("/api/session", { method: "DELETE" }),
 };

@@ -5,13 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { OutfitCard } from "@/components/OutfitCard";
+import { StylistNote, groundingFor, type StylistNoteData } from "@/components/StylistNote";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useToast } from "@/components/Toast";
 import { useSpeech } from "@/components/useSpeech";
 import { ApiError, api } from "@/lib/api";
 import { useDevice } from "@/lib/capabilities";
+import { readSettings } from "@/lib/settings";
 import { getOutfitSession, saveLook, saveOutfitSession, type OutfitSession } from "@/lib/storage";
 import { useLooks } from "@/lib/use-local";
+import { speak } from "@/lib/voice";
 
 const OCCASIONS = ["Dinner", "Date night", "Office", "Brunch", "Party", "Wedding guest", "Travel", "Weekend"];
 const MOODS = ["Elegant", "Relaxed", "Minimal", "Bold", "Sexy", "Sporty"];
@@ -39,6 +42,9 @@ function Stylist() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [session, setSession] = useState<OutfitSession | null>(null);
+  const [note, setNote] = useState<StylistNoteData | null>(null);
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [thinking, setThinking] = useState(false);
   const autoRan = useRef(false);
 
   useEffect(() => {
@@ -60,18 +66,43 @@ function Stylist() {
       const full = composed(text);
       setBusy(true);
       setError(null);
+      setNote(null);
+      setNoteError(null);
+      // 1) Outfits from the owner's real wardrobe (MCP tools).
+      let next: OutfitSession | null = null;
+      let toolError: ApiError | null = null;
       try {
         const [result, items] = await Promise.all([api.suggest(full, 3), api.wardrobe()]);
-        const next = { prompt: full, outfits: result.outfits, items };
+        next = { prompt: full, outfits: result.outfits, items };
         setSession(next);
         saveOutfitSession(next);
       } catch (err) {
-        setError(err instanceof ApiError ? err : new ApiError("Something went wrong", 500, "error"));
+        toolError = err instanceof ApiError ? err : new ApiError("Something went wrong", 500, "error");
       } finally {
         setBusy(false);
       }
+      if (toolError?.needsPairing) return setError(toolError);
+
+      // 2) The HomePilot Stylist persona says it in a sentence or two,
+      //    grounded in the top outfit's owned items.
+      setThinking(true);
+      // Read at call time: auto-run (Alexa, quick ideas) can fire before settings hydrate.
+      const settings = readSettings();
+      try {
+        const r = await api.stylistChat({ prompt: full, items: groundingFor(next), model: settings.stylistModel });
+        setNote({ ...r, toolsDown: Boolean(toolError) });
+        if (toolError) setSession(null);
+        if (settings.speakReplies) speak(r.reply, runtime);
+      } catch (err) {
+        if (toolError) setError(toolError);
+        else if (!(err instanceof ApiError && err.code === "unavailable")) {
+          setNoteError(err instanceof ApiError ? err.message : "Your stylist could not answer");
+        }
+      } finally {
+        setThinking(false);
+      }
     },
-    [composed],
+    [composed, runtime],
   );
 
   useEffect(() => {
@@ -159,6 +190,14 @@ function Stylist() {
                 </span>
               </div>
             )}
+            {(note || thinking || noteError) && !error && (
+              <StylistNote
+                note={note}
+                thinking={thinking}
+                error={noteError}
+                onReplay={note ? () => speak(note.reply, runtime) : undefined}
+              />
+            )}
             {error ? (
               <div className="empty">
                 <div className="empty__icon">
@@ -204,7 +243,7 @@ function Stylist() {
                   />
                 ))}
               </>
-            ) : session ? (
+            ) : note?.toolsDown ? null : session ? (
               <div className="empty">
                 <div className="empty__icon">
                   <Icon name="hanger" />
@@ -215,7 +254,7 @@ function Stylist() {
                   Open wardrobe
                 </Button>
               </div>
-            ) : (
+            ) : thinking || note ? null : (
               <div className="empty">
                 <div className="empty__icon">
                   <Icon name="sparkle" />
