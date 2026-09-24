@@ -24,8 +24,9 @@
 
 .persistent-capture {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
   gap: 0.9rem;
+  align-self: start;
   min-width: 0;
   min-height: 0;
   padding: 0.6rem;
@@ -36,14 +37,28 @@
 
 .persistent-capture__image {
   display: grid;
-  place-items: center;
+  place-items: start center;
   min-height: 0;
 }
 
+/*
+ * Never stretch the mirror to the height of the surrounding screen.
+ * The previous 100% height could squeeze a 3:4 portrait into the narrow rail,
+ * which made object-fit: cover crop the person heavily as routes changed.
+ */
 .persistent-capture__image .portrait {
-  width: auto;
-  height: 100%;
+  width: 100%;
+  height: auto;
   max-width: 100%;
+  max-height: none;
+  aspect-ratio: 3 / 4;
+}
+
+/* Preserve the full captured person in the persistent rail. */
+.persistent-capture__image .portrait > img {
+  object-fit: contain;
+  object-position: center top;
+  background: #0f0d0b;
 }
 
 .persistent-capture__meta {
@@ -109,7 +124,8 @@ html[data-dpad="true"] .persistent-capture .sm-btn:focus-visible {
 
   .persistent-capture__image {
     width: 5.25rem;
-    height: 6.75rem;
+    height: auto;
+    aspect-ratio: 3 / 4;
   }
 
   .persistent-capture__image .portrait {
@@ -127,7 +143,6 @@ html[data-dpad="true"] .persistent-capture .sm-btn:focus-visible {
 @media (max-width: 560px) {
   .persistent-capture__image {
     width: 4.5rem;
-    height: 5.75rem;
   }
 
   .persistent-capture__label {
