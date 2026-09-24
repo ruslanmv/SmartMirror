@@ -187,6 +187,7 @@ gradle :app:assembleDebug -PsmartmirrorWebUrl=https://smart-mirror.vercel.app
 - `docs/architecture/overview.md`
 - `docs/architecture/homepilot-integration.md`
 - `docs/architecture/ollabridge-integration.md`
+- `docs/architecture/wardrobe-intelligence-and-shopping.md` (garment ML, outfit sets, Amazon)
 - `docs/privacy/data-handling.md`
 - `docs/device-testing/echo-show-21.md`
 - `docs/adr/`
