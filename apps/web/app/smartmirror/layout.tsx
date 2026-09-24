@@ -1,6 +1,7 @@
 import { MirrorShell } from "@/components/MirrorShell";
 
 import "./mirror.css";
+import "./persistent-capture.css";
 
 export default function SmartMirrorLayout({ children }: { children: React.ReactNode }) {
   return (
