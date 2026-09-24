@@ -72,13 +72,23 @@ See `.env.example`. All settings are server-only; nothing uses `NEXT_PUBLIC_`.
 
 ## Deploy to Vercel
 
-1. Import the repository in Vercel and set **Root Directory** to `apps/web`
-   (keep "Include files outside the root directory" on; the app uses
-   `packages/*`). The framework and pnpm workspace are detected automatically.
+The repository root contains a `vercel.json` that builds this app, so the
+Vercel project works with the default Root Directory (the repo root):
+
+- `framework: nextjs` stops Vercel from auto-detecting the Python backend
+  (`pyproject.toml`) as a FastAPI app;
+- `pnpm --filter @smartmirror/web build` builds only the web app, and
+  `apps/web/.next` is the output;
+- the root `package.json` lists `next` so Vercel can detect the Next.js version.
+
+Steps:
+
+1. Import the repository in Vercel (keep Root Directory empty; if you set it to
+   `apps/web` instead, `apps/web/vercel.json` is used and also works).
 2. Add the environment variables from `.env.example` for Production (Preview
    deployments can stay in demo mode).
-3. Every push now gets a preview URL such as
-   `smartmirror-git-<branch>.vercel.app`; open `/simulator/echo-show-21` on it.
+3. Every push gets a preview URL such as `smartmirror-git-<branch>.vercel.app`;
+   open `/simulator/echo-show-21` on it.
 
-`vercel.json` skips builds for commits that do not touch the web app, its
-packages or the lockfile.
+Builds are skipped for commits that do not touch the web app, its packages or
+the lockfile.
