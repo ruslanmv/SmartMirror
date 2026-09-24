@@ -16,6 +16,8 @@ export interface SessionData {
   kind: "owner" | "device" | "demo";
   /** OllaBridge device token (device mode only). */
   deviceToken?: string;
+  /** OllaBridge device id of this screen (device mode only). */
+  deviceId?: string;
   nodeId?: string;
   deviceName?: string;
   iat: number;
@@ -31,7 +33,7 @@ let ephemeralSecret: string | null = null;
 
 export class SessionConfigError extends Error {}
 
-function secret(): string {
+export function sessionSecret(): string {
   const config = getConfig();
   if (config.sessionSecret) {
     if (config.sessionSecret.length < 32) {
@@ -49,7 +51,7 @@ function secret(): string {
 export async function readSession(): Promise<SessionData | null> {
   const raw = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!raw) return null;
-  const data = await openSealed<SessionData>(raw, secret());
+  const data = await openSealed<SessionData>(raw, sessionSecret());
   if (!data || data.v !== 1 || data.exp * 1000 < Date.now()) return null;
   return data;
 }
@@ -57,7 +59,7 @@ export async function readSession(): Promise<SessionData | null> {
 export async function writeSession(input: Omit<SessionData, "v" | "iat" | "exp">): Promise<SessionData> {
   const now = Math.floor(Date.now() / 1000);
   const data: SessionData = { ...input, v: 1, iat: now, exp: now + SESSION_TTL_SECONDS };
-  (await cookies()).set(SESSION_COOKIE, await seal(data, secret()), {
+  (await cookies()).set(SESSION_COOKIE, await seal(data, sessionSecret()), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

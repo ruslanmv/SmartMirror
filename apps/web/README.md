@@ -108,13 +108,37 @@ Real-time testing on a Vercel preview (HTTPS is required for cameras):
 |---|---|---|
 | `demo` | nothing configured (every preview) | in-process sample wardrobe |
 | `direct` | `SMARTMIRROR_API_URL` | SmartMirror `/rpc` |
-| `ollabridge` | `OLLABRIDGE_BASE_URL` + token or pairing path | OllaBridge → HomePilot → SmartMirror MCP |
+| `ollabridge` | `OLLABRIDGE_BASE_URL` (or `SMARTMIRROR_BACKEND=ollabridge`, which defaults to `https://app.ollabridge.com`) | OllaBridge → HomePilot → SmartMirror MCP |
+
+## Pairing with OllaBridge
+
+Screens pair the same way the 3D Avatar Chatbot does, with two flows on
+`/smartmirror/pairing`:
+
+| Flow | How | OllaBridge calls (server-side) |
+|---|---|---|
+| **Show a code** (default) | The screen shows `ABCD-1234` and a QR code of `verification_url?code=…`; the owner confirms on their phone | `POST /device/start`, then `POST /device/poll` every few seconds |
+| **Type a code** | Type a code from the OllaBridge dashboard (letters keypad, then digits) | `POST /pair {code, label, client}` |
+
+- The screen identifies itself as `User-Agent: smartmirror/<version>` and sends
+  `client: {name: "SmartMirror", …}`, so the OllaBridge dashboard lists it as **SmartMirror**.
+- The secret `device_code` waits in a short-lived sealed HttpOnly cookie
+  (`sm_pairing`, path `/api/session/pair`); the device token is sealed into the
+  session cookie. Neither ever reaches the page.
+- Demo mode exercises both flows without OllaBridge (the shown code confirms itself).
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `OLLABRIDGE_BASE_URL` | `https://app.ollabridge.com` in `ollabridge` mode | gateway root, no `/v1` |
+| `OLLABRIDGE_PAIRING_FLOW` | `device` | `code` makes typing the default tab |
+| `OLLABRIDGE_PAIRING_PATH` | `/pair` | code-entry endpoint |
+| `SMARTMIRROR_SESSION_SECRET` | required outside demo | ≥ 32 characters; seals both cookies |
 
 See `.env.example`. All settings are server-only; nothing uses `NEXT_PUBLIC_`.
 
 ## Security model
 
-- Screens pair with a short code (`/smartmirror/pairing`) and get an
+- Screens pair through OllaBridge (show a code or type one, see above) and get an
   AES-GCM-sealed, HttpOnly, SameSite=Lax cookie. The OllaBridge token is either
   a server env var (single owner) or sealed inside that cookie (device pairing);
   JavaScript can read neither.

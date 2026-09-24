@@ -1,8 +1,18 @@
-import { getConfig, pairingRequired } from "@/lib/server/config";
+import { getConfig, ownerMode, pairingRequired, type ServerConfig } from "@/lib/server/config";
 import { toErrorResponse } from "@/lib/server/backend";
 import { clearSession, readSession } from "@/lib/server/session";
 
 export const dynamic = "force-dynamic";
+
+/** Which pairing flows this deployment offers (never includes credentials). */
+function pairingOptions(config: ServerConfig) {
+  const owner = ownerMode(config);
+  const device = (config.mode === "ollabridge" && !owner) || config.mode === "demo";
+  const code =
+    config.mode === "ollabridge" && !owner ? "ollabridge" : config.accessCode ? "access" : config.mode === "demo" ? "demo" : null;
+  const gateway = config.mode === "ollabridge" && config.ollabridge.baseUrl ? new URL(config.ollabridge.baseUrl).host : null;
+  return { device, code, primary: device ? config.ollabridge.pairingFlow : "code", gateway };
+}
 
 /** Session status for the UI. Never returns the token itself. */
 export async function GET() {
@@ -13,9 +23,16 @@ export async function GET() {
       {
         backend: config.mode,
         pairingRequired: pairingRequired(config),
+        pairing: pairingOptions(config),
         paired: Boolean(session),
         session: session
-          ? { kind: session.kind, deviceName: session.deviceName ?? null, nodeId: session.nodeId ?? null, expiresAt: session.exp }
+          ? {
+              kind: session.kind,
+              deviceName: session.deviceName ?? null,
+              deviceId: session.deviceId ?? null,
+              nodeId: session.nodeId ?? null,
+              expiresAt: session.exp,
+            }
           : null,
       },
       { headers: { "Cache-Control": "no-store" } },

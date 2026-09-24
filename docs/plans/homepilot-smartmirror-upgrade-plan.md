@@ -153,7 +153,12 @@ Each item lists what changes, the flag, the additive guarantee, the tests and th
 
 ### 6.1 SmartMirror (product repo)
 
-#### W-0 · Pairing that works like the 3D Avatar (M1a)
+#### W-0 · Pairing that works like the 3D Avatar (M1a) — ✅ done
+> Built as specified below. Also: a sealed `sm_pairing` cookie holds the secret
+> `device_code`; demo mode confirms its own code so previews exercise the flow; the
+> "type a code" keypad shows letters for the first four characters and digits after
+> (OllaBridge codes are always `ABCD-1234`). Tests: `apps/web/test/pairing.test.ts`
+> plus a Playwright run against a stub OllaBridge (token never reaches the page).
 - **Primary flow: TV-style**, suited to a 10-foot screen with no typing:
   1. the BFF calls `POST /device/start`;
   2. the mirror shows the `ABCD-1234` code large, plus a QR code of `verification_url`;

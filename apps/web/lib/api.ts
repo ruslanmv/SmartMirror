@@ -80,9 +80,37 @@ export const api = {
       backend: HealthReport["backend"];
       pairingRequired: boolean;
       paired: boolean;
-      session: { kind: string; deviceName: string | null; nodeId: string | null; expiresAt: number } | null;
+      pairing: {
+        /** TV-style flow available (show a code, confirm on the phone). */
+        device: boolean;
+        /** What a typed code is checked against. */
+        code: "ollabridge" | "access" | "demo" | null;
+        primary: "device" | "code";
+        /** OllaBridge host, for display. */
+        gateway: string | null;
+      };
+      session: {
+        kind: string;
+        deviceName: string | null;
+        deviceId: string | null;
+        nodeId: string | null;
+        expiresAt: number;
+      } | null;
     }>("/api/session"),
-  pair: (code: string, deviceName: string) =>
-    request<{ ok: true; kind: string }>("/api/session/pair", { method: "POST", body: JSON.stringify({ code, deviceName }) }),
+  pair: (code: string, deviceName: string, runtime?: string) =>
+    request<{ ok: true; kind: string }>("/api/session/pair", {
+      method: "POST",
+      body: JSON.stringify({ code, deviceName, runtime }),
+    }),
+  pairStart: (deviceName: string, runtime?: string) =>
+    request<{ userCode: string; verificationUrl: string; expiresIn: number; interval: number; demo?: boolean }>(
+      "/api/session/pair/start",
+      { method: "POST", body: JSON.stringify({ deviceName, runtime }) },
+    ),
+  pairPoll: () =>
+    request<{ status: "pending" | "approved" | "expired"; kind?: string; warning?: string }>("/api/session/pair/poll", {
+      method: "POST",
+    }),
+  pairCancel: () => request<{ ok: true }>("/api/session/pair/poll", { method: "DELETE" }),
   unpair: () => request<{ ok: true }>("/api/session", { method: "DELETE" }),
 };

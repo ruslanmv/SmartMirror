@@ -19,9 +19,15 @@ export interface ServerConfig {
     nodeId: string | null;
     mcpOperation: string;
     mcpServer: string;
-    pairingPath: string | null;
+    /** Code-entry pairing endpoint (3D Avatar style), relative to baseUrl. */
+    pairingPath: string;
+    /** Primary pairing flow shown on the screen. */
+    pairingFlow: "device" | "code";
   };
 }
+
+/** OllaBridge Cloud, the same default gateway the 3D Avatar Chatbot uses. */
+export const DEFAULT_OLLABRIDGE_URL = "https://app.ollabridge.com";
 
 function env(name: string): string | null {
   const v = process.env[name];
@@ -39,7 +45,8 @@ export function getConfig(): ServerConfig {
     nodeId: env("OLLABRIDGE_NODE_ID"),
     mcpOperation: env("OLLABRIDGE_MCP_OPERATION") ?? "mcp.tools_call",
     mcpServer: env("OLLABRIDGE_MCP_SERVER") ?? "smartmirror",
-    pairingPath: env("OLLABRIDGE_PAIRING_PATH"),
+    pairingPath: env("OLLABRIDGE_PAIRING_PATH") ?? "/pair",
+    pairingFlow: env("OLLABRIDGE_PAIRING_FLOW") === "code" ? ("code" as const) : ("device" as const),
   };
   const smartmirrorApiUrl = trimSlash(env("SMARTMIRROR_API_URL"));
 
@@ -47,13 +54,16 @@ export function getConfig(): ServerConfig {
   let mode: BackendMode;
   if (explicit === "demo" || explicit === "direct" || explicit === "ollabridge") {
     mode = explicit;
-  } else if (ollabridge.baseUrl && (ollabridge.ownerToken || ollabridge.pairingPath)) {
+  } else if (ollabridge.baseUrl) {
+    // Screens pair themselves (device flow or code), so a base URL is enough.
     mode = "ollabridge";
   } else if (smartmirrorApiUrl) {
     mode = "direct";
   } else {
     mode = "demo";
   }
+
+  if (mode === "ollabridge" && !ollabridge.baseUrl) ollabridge.baseUrl = DEFAULT_OLLABRIDGE_URL;
 
   return {
     mode,
@@ -63,6 +73,14 @@ export function getConfig(): ServerConfig {
     smartmirrorApiUrl,
     ollabridge,
   };
+}
+
+/**
+ * Single-owner deployment: the OllaBridge token lives in the server env and
+ * screens unlock with SMARTMIRROR_ACCESS_CODE instead of pairing with OllaBridge.
+ */
+export function ownerMode(config: ServerConfig): boolean {
+  return config.mode === "ollabridge" && Boolean(config.ollabridge.ownerToken && config.accessCode);
 }
 
 /** Real backends hold personal data, so they always require a paired session. */
