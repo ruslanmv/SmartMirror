@@ -10,6 +10,10 @@ All notable changes to SmartMirror will be documented here.
   "type a code" fallback (`/pair`), SmartMirror client identity, sealed pending
   pairing cookie, paired-screen card with "Forget this screen".
 - Stylist persona template for HomePilot (`integrations/homepilot/personas`).
+- AI try-on on the owner's PC: photos stored at home via `hp.smartmirror.capture_upload`
+  (EXIF removed, body photos expire), HomePilot `images.edit` provider (cloud fallback),
+  background jobs + worker, preview returned as a small image with a disclaimer and
+  before/after; phone → screen photo hand-off across devices with a sealed ticket.
 - Backend foundations: assets, classification runs, outfit sets, shopping candidates,
   capture sessions, audit events (migration `0002_foundations`); media store; retention
   sweep worker; delete-all endpoint and `hp.smartmirror.profile_delete`; contracts v1.

@@ -2,10 +2,11 @@
 
 import { downscaleImage } from "@smartmirror/device-capabilities";
 import { Badge, Button, Icon, Wordmark } from "@smartmirror/ui";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { Mirror } from "@/components/Mirror";
+import { ApiError, api } from "@/lib/api";
 import { sendCompanionPhoto } from "@/lib/companion";
 
 import "../../smartmirror/mirror.css";
@@ -14,6 +15,9 @@ import "../companion.css";
 /** Phone-side capture page opened from the mirror's QR code. */
 export default function CompanionCapture() {
   const { code } = useParams<{ code: string }>();
+  // Present when the mirror uses a real backend: the photo goes to the owner's PC.
+  const ticket = useSearchParams().get("t");
+  const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -24,18 +28,28 @@ export default function CompanionCapture() {
     const reader = new FileReader();
     reader.onload = async () => {
       if (typeof reader.result !== "string") return;
-      setPhoto(await downscaleImage(reader.result));
+      setPhoto(await downscaleImage(reader.result, 1280, 0.85));
       setSent(false);
     };
     reader.readAsDataURL(file);
   };
 
-  const send = () => {
+  const send = async () => {
     if (!photo) return;
     setBusy(true);
-    const ok = sendCompanionPhoto(code, photo);
-    setBusy(false);
-    setSent(ok);
+    setError(null);
+    try {
+      if (ticket) {
+        await api.companionUpload(ticket, photo);
+        setSent(true);
+      } else {
+        setSent(sendCompanionPhoto(code, photo));
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not send the photo");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -62,9 +76,10 @@ export default function CompanionCapture() {
           </p>
         ) : photo ? (
           <>
-            <Button variant="primary" size="lg" icon="arrow-right" busy={busy} onClick={send}>
+            <Button variant="primary" size="lg" icon="arrow-right" busy={busy} onClick={() => void send()}>
               Send to mirror
             </Button>
+            {error && <p className="form-error">{error}</p>}
             <Button icon="refresh" onClick={() => input.current?.click()}>
               Retake
             </Button>
@@ -78,8 +93,9 @@ export default function CompanionCapture() {
           </>
         )}
         <p className="companion-note">
-          The photo goes straight to your mirror screen. In this preview build, delivery works when the phone view and the mirror share a
-          browser (for example the simulator); cross-device delivery uses the OllaBridge relay.
+          {ticket
+            ? "The photo goes to your own HomePilot PC through OllaBridge and appears on the mirror. Location data is removed, and body photos are deleted after 24 hours."
+            : "The photo goes straight to your mirror screen when this phone view and the mirror share a browser (for example the simulator)."}
         </p>
       </section>
     </main>

@@ -64,8 +64,17 @@ export function validateToolCall(tool: string, args: unknown): Record<string, un
 
 export async function callTool(tool: string, rawArgs: unknown): Promise<unknown> {
   const config = getConfig();
+  return callToolAs(await requireAccess(config), tool, rawArgs);
+}
+
+/**
+ * Run a tool for an explicit session. Used by the phone hand-off, whose
+ * request carries a sealed, single-session ticket instead of a cookie.
+ */
+export async function callToolAs(session: SessionData | null, tool: string, rawArgs: unknown): Promise<unknown> {
+  const config = getConfig();
   const args = validateToolCall(tool, rawArgs);
-  const session = await requireAccess(config);
+  if (pairingRequired(config) && !session) throw new BffError("Pair this screen to continue", 401, "pairing_required");
   // The profile is decided server-side; a browser cannot address another profile.
   const scoped = { ...args, profile_id: config.profileId };
   if (tool === TOOLS.jobGet) delete (scoped as Record<string, unknown>).profile_id;
@@ -78,7 +87,7 @@ export async function callTool(tool: string, rawArgs: unknown): Promise<unknown>
     case "ollabridge": {
       const client = new OllaBridgeClient(config.ollabridge.baseUrl!, ollabridgeToken(config, session));
       const node = await client.resolveNode(session?.nodeId ?? config.ollabridge.nodeId, session?.deviceId);
-      await rememberNode(session, node.node_id);
+      if (!session?.ticket) await rememberNode(session, node.node_id);
       return client.callTool(config.ollabridge, node.node_id, tool, scoped);
     }
   }

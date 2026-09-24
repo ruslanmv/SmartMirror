@@ -197,3 +197,12 @@ describe("job failure race", () => {
     expect(polls).toBe(2);
   });
 });
+
+describe("payloads that contain their own result field", () => {
+  it("returns a job_get payload intact", async () => {
+    const payload = { id: "job_9", status: "succeeded", progress: 1, result: { preview_url: "data:image/jpeg;base64,AA" } };
+    fakeCloud({ nodes: [], job: (params) => ({ status: "completed", output: { tool: params.tool, result: payload } }) });
+    const got = await new OllaBridgeClient(BASE, TOKEN).callTool(config(), "dev_pc", "hp.smartmirror.job_get", { job_id: "job_9" });
+    expect(got).toEqual(payload);
+  });
+});

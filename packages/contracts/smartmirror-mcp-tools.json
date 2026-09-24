@@ -18,6 +18,22 @@
       "required": ["outfit_id", "body_capture_ref"]
     },
     {
+      "name": "hp.smartmirror.capture_upload",
+      "required": ["image"]
+    },
+    {
+      "name": "hp.smartmirror.capture_session_create",
+      "required": []
+    },
+    {
+      "name": "hp.smartmirror.capture_session_complete",
+      "required": ["session_id", "asset_id"]
+    },
+    {
+      "name": "hp.smartmirror.capture_session_get",
+      "required": ["session_id"]
+    },
+    {
       "name": "hp.smartmirror.profile_delete",
       "required": ["confirm"]
     },

@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     smartmirror_storage: str = "local"
     smartmirror_media_dir: str = "./media"
 
+    # AI try-on: "homepilot" (images.edit node job on this PC), "ollabridge-cloud", or "none".
+    smartmirror_image_provider: str = "homepilot"
+    # Run try-on jobs in the API process as soon as they are created (single-PC setup).
+    smartmirror_inline_jobs: bool = True
+    smartmirror_tryon_timeout_s: int = 600
+
 
 @lru_cache
 def get_settings() -> Settings:

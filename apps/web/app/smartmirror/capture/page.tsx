@@ -18,6 +18,7 @@ import { QRCode } from "@/components/QRCode";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useToast } from "@/components/Toast";
 import { cameraErrorText, useCameraStream } from "@/components/useCameraStream";
+import { api } from "@/lib/api";
 import { useDevice } from "@/lib/capabilities";
 import { listenForCompanionPhoto, newCompanionCode } from "@/lib/companion";
 import { clearCapture, saveCapture } from "@/lib/storage";
@@ -285,26 +286,73 @@ function UploadStage({ onCaptured }: { onCaptured: (dataUrl: string) => void }) 
 function CompanionStage({ onCaptured }: { onCaptured: (dataUrl: string) => void }) {
   const { postToSimulator } = useDevice();
   const [code, setCode] = useState<string | null>(null);
+  const [link, setLink] = useState<string | null>(null);
+  const [remote, setRemote] = useState(false);
+  const [expired, setExpired] = useState(false);
   const [origin, setOrigin] = useState("");
+  const [round, setRound] = useState(0);
 
   useEffect(() => {
-    const c = newCompanionCode();
-    setCode(c);
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const local = newCompanionCode();
     setOrigin(window.location.origin);
-    postToSimulator({ type: "sm:companion", code: c });
-    const stop = listenForCompanionPhoto(c, onCaptured);
+    setExpired(false);
+    // Same-browser channel: the simulator's phone preview and demo mode.
+    postToSimulator({ type: "sm:companion", code: local });
+    const stop = listenForCompanionPhoto(local, onCaptured);
+
+    const useLocal = () => {
+      setRemote(false);
+      setCode(local);
+      setLink(`${window.location.origin}/companion/${local}`);
+    };
+    // With a real backend the phone uploads to the owner's PC and the screen polls.
+    api
+      .companionStart("body")
+      .then((r) => {
+        if (!alive) return;
+        if (r.mode !== "remote") return useLocal();
+        setRemote(true);
+        setCode(r.code);
+        setLink(`${window.location.origin}/companion/${r.code}?t=${encodeURIComponent(r.ticket)}`);
+        const poll = async () => {
+          if (!alive) return;
+          try {
+            const st = await api.companionStatus(r.sessionId);
+            if (!alive) return;
+            if (st.status === "received" && st.preview_url) return onCaptured(st.preview_url);
+            if (st.status === "expired") return setExpired(true);
+          } catch {
+            /* keep waiting through a hiccup */
+          }
+          timer = setTimeout(poll, 2000);
+        };
+        timer = setTimeout(poll, 2000);
+      })
+      .catch(() => alive && useLocal());
+
     return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
       stop();
       postToSimulator({ type: "sm:companion", code: null });
     };
-  }, [onCaptured, postToSimulator]);
+  }, [onCaptured, postToSimulator, round]);
 
-  if (!code) return null;
-  const url = `${origin}/companion/${code}`;
+  if (!code || !link) {
+    return (
+      <div className="stage__view">
+        <span className="waiting">
+          <span className="sm-spinner" aria-hidden="true" /> Preparing a link for your phone…
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="stage__view">
       <div className="companion">
-        <QRCode value={url} label={`QR code linking to ${url}`} />
+        <QRCode value={link} label={`QR code linking to ${link.split("?")[0]}`} />
         <div className="companion__steps">
           <div className="companion__step">
             <span className="companion__num">1</span>
@@ -324,15 +372,27 @@ function CompanionStage({ onCaptured }: { onCaptured: (dataUrl: string) => void 
               <b>It appears here</b> for you to review.
             </span>
           </div>
-          <div>
-            <p className="sm-faint" style={{ fontSize: "0.8rem", letterSpacing: "0.14em", textTransform: "uppercase" }}>
-              Or open <span className="sm-muted">{origin.replace(/^https?:\/\//, "")}/companion</span> and enter
+          {remote ? (
+            <p className="sm-faint" style={{ fontSize: "0.85rem" }}>
+              The photo goes straight to your HomePilot PC. This code works for 10 minutes · {code}
             </p>
-            <p className="companion__code">{code}</p>
-          </div>
-          <span className="waiting">
-            <span className="sm-spinner" aria-hidden="true" /> Waiting for your phone…
-          </span>
+          ) : (
+            <div>
+              <p className="sm-faint" style={{ fontSize: "0.8rem", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                Or open <span className="sm-muted">{origin.replace(/^https?:\/\//, "")}/companion</span> and enter
+              </p>
+              <p className="companion__code">{code}</p>
+            </div>
+          )}
+          {expired ? (
+            <Button icon="refresh" data-autofocus onClick={() => setRound((n) => n + 1)}>
+              Code expired · get a new one
+            </Button>
+          ) : (
+            <span className="waiting">
+              <span className="sm-spinner" aria-hidden="true" /> Waiting for your phone…
+            </span>
+          )}
         </div>
       </div>
     </div>

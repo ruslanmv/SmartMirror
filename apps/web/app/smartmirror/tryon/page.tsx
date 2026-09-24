@@ -46,6 +46,7 @@ function TryOn() {
   const [selection, setSelection] = useState<ReturnType<typeof findOutfit> | undefined>(undefined);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [saved, setSaved] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
   const cancelled = useRef(false);
 
   useEffect(() => {
@@ -102,7 +103,7 @@ function TryOn() {
           setPhase({ kind: "done", job });
           return;
         }
-        if (job.status === "failed") throw new ApiError(job.error_code ?? "Try-on failed", 500, "job_failed");
+        if (job.status === "failed") throw new ApiError(tryOnErrorText(job.error_code), 500, "job_failed");
         setPhase({ kind: "running", job });
         // A backend without a try-on worker leaves jobs queued forever.
         if (job.status === "queued" && Date.now() - startedAt > 90_000) {
@@ -116,6 +117,8 @@ function TryOn() {
 
   const previewUrl = phase.kind === "done" && typeof phase.job.result.preview_url === "string" ? phase.job.result.preview_url : null;
   const isDemo = phase.kind === "done" && !previewUrl;
+  const disclaimer = phase.kind === "done" && typeof phase.job.result.disclaimer === "string" ? phase.job.result.disclaimer : null;
+  const showing = previewUrl && !showOriginal ? previewUrl : capture?.dataUrl;
 
   return (
     <div className="screen">
@@ -123,11 +126,11 @@ function TryOn() {
       <div className="tryon">
         <div className="stage__view" style={{ minHeight: 0 }}>
           <Mirror
-            imageUrl={previewUrl ?? capture?.dataUrl}
+            imageUrl={showing}
             label={phase.kind === "done" ? "Try-on preview" : "Your photo"}
             caption={
               phase.kind === "done" ? (
-                <Badge tone="accent">{isDemo ? "Demo preview" : "Try-on preview"}</Badge>
+                <Badge tone="accent">{isDemo ? "Demo preview" : showOriginal ? "Your photo" : "Try-on preview"}</Badge>
               ) : !capture ? (
                 <Badge>No photo yet</Badge>
               ) : undefined
@@ -194,7 +197,7 @@ function TryOn() {
               <p className="sm-muted">
                 {isDemo
                   ? "Demo mode shows a styled overlay. Connect your HomePilot to render a real try-on."
-                  : "Rendered on your HomePilot."}
+                  : `Rendered on your HomePilot. ${disclaimer ?? "AI style preview — not a fit guarantee"}.`}
               </p>
               <div className="outfit__actions">
                 <Button
@@ -210,6 +213,11 @@ function TryOn() {
                 >
                   {saved ? "Saved" : "Save look"}
                 </Button>
+                {previewUrl && (
+                  <Button icon="refresh" aria-pressed={showOriginal} onClick={() => setShowOriginal((v) => !v)}>
+                    {showOriginal ? "Show try-on" : "Before / after"}
+                  </Button>
+                )}
                 <Button icon="sparkle" onClick={() => router.push("/smartmirror/stylist")}>
                   Try another
                 </Button>
@@ -229,4 +237,16 @@ function TryOn() {
       </div>
     </div>
   );
+}
+
+/** Plain words for the try-on failure codes (SmartMirror / HomePilot). */
+function tryOnErrorText(code: string | null | undefined): string {
+  const c = code ?? "";
+  if (c.startsWith("CAPABILITY_UNAVAILABLE"))
+    return "Image editing is switched off on your HomePilot. Turn on HOMEPILOT_MIRROR_JOBS_ENABLED and HOMEPILOT_MIRROR_IMAGE_EDIT_ENABLED.";
+  if (c.startsWith("RESOURCE_REJECTED")) return "Your photo has expired or could not be read. Take a new photo and try again.";
+  if (c.startsWith("NODE_RESTARTED")) return "Your HomePilot restarted during the try-on. Please try again.";
+  if (c.startsWith("JOB_TIMEOUT")) return "Your HomePilot took too long. It may be busy; try again in a moment.";
+  if (c.startsWith("IMAGE_EDIT_FAILED")) return "The try-on did not produce an image. Try a clearer, full-length photo.";
+  return c || "Try-on failed";
 }

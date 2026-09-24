@@ -20,6 +20,8 @@ export interface SessionData {
   deviceId?: string;
   nodeId?: string;
   deviceName?: string;
+  /** Set on sessions reconstructed from a phone hand-off ticket (never a cookie). */
+  ticket?: boolean;
   iat: number;
   exp: number;
 }

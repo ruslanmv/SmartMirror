@@ -235,7 +235,11 @@ export class OllaBridgeClient {
       delay = Math.min(delay * 1.6, 2_000);
       job = await this.getJob(nodeId, jobId);
     }
-    return unwrapToolResult(job.output ?? job.result);
+    const out = job.output ?? job.result;
+    // agentic.invoke returns {tool, result} with the tool's payload already
+    // unwrapped; that payload may itself contain a "result" (e.g. job_get).
+    if (out && typeof out === "object" && "tool" in out && "result" in out) return (out as { result: unknown }).result;
+    return unwrapToolResult(out);
   }
 }
 

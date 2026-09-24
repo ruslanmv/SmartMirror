@@ -19,6 +19,8 @@ class TryOnResult:
     image_urls: list[str] = field(default_factory=list)
     provider: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
+    #: Image bytes, when the provider returns the result directly.
+    images: list[bytes] = field(default_factory=list)
 
 
 class VirtualTryOnProvider(abc.ABC):

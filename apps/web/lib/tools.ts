@@ -14,6 +14,10 @@ export const TOOLS = {
   tryonCreate: "hp.smartmirror.tryon_create",
   jobGet: "hp.smartmirror.job_get",
   profileDelete: "hp.smartmirror.profile_delete",
+  captureUpload: "hp.smartmirror.capture_upload",
+  captureSessionCreate: "hp.smartmirror.capture_session_create",
+  captureSessionComplete: "hp.smartmirror.capture_session_complete",
+  captureSessionGet: "hp.smartmirror.capture_session_get",
 } as const;
 
 export type ToolName = (typeof TOOLS)[keyof typeof TOOLS];

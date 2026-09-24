@@ -1,6 +1,6 @@
 "use client";
 
-import type { DeviceCapabilities } from "@smartmirror/device-capabilities";
+import { downscaleImage, type DeviceCapabilities } from "@smartmirror/device-capabilities";
 
 import {
   TOOLS,
@@ -70,10 +70,24 @@ export const api = {
   createTryOn: (outfitId: string, bodyCaptureRef: string, instruction = "") =>
     callTool<TryOnCreated>(TOOLS.tryonCreate, { outfit_id: outfitId, body_capture_ref: bodyCaptureRef, instruction }),
   job: (jobId: string) => callTool<JobStatus>(TOOLS.jobGet, { job_id: jobId }),
-  uploadCapture: (dataUrl: string) => {
+  uploadCapture: async (dataUrl: string) => {
     assertOnline();
-    return request<{ ref: string; stored: boolean }>("/api/media", { method: "POST", body: JSON.stringify({ dataUrl }) });
+    // Small enough for the OllaBridge relay; plenty for an AI style preview.
+    const small = await downscaleImage(dataUrl, 1280, 0.85).catch(() => dataUrl);
+    return request<{ ref: string; stored: boolean }>("/api/media", { method: "POST", body: JSON.stringify({ dataUrl: small }) });
   },
+  companionStart: (purpose: "body" | "garment" = "body") =>
+    request<
+      | { mode: "local" }
+      | { mode: "remote"; sessionId: string; code: string; ticket: string; expiresAt: string }
+    >("/api/companion/start", { method: "POST", body: JSON.stringify({ purpose }) }),
+  companionStatus: (sessionId: string) =>
+    request<{ status: "waiting" | "received" | "expired"; preview_url?: string; asset_id?: string | null }>(
+      "/api/companion/status",
+      { method: "POST", body: JSON.stringify({ sessionId }) },
+    ),
+  companionUpload: (ticket: string, image: string) =>
+    request<{ ok: true }>("/api/companion/upload", { method: "POST", body: JSON.stringify({ ticket, image }) }),
   health: () => request<HealthReport>("/api/health"),
   session: () =>
     request<{
