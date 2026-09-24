@@ -14,6 +14,7 @@ const INTENT_MAP = {
   WardrobeIntent: "WardrobeIntent",
   TryOnIntent: "TryOnIntent",
   PhotoIntent: "PhotoIntent",
+  PortraitIntent: "PortraitIntent",
   "AMAZON.NavigateHomeIntent": "HomeIntent",
 };
 

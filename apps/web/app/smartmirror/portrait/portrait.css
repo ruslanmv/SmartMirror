@@ -1,0 +1,278 @@
+/* ================= Portrait mode (full screen) ================= */
+
+.portrait-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  background: #070605;
+  cursor: none;
+}
+.portrait-mode.has-controls { cursor: default; }
+
+/* ---------- Real mirror ---------- */
+
+.real-mirror { position: absolute; inset: 0; background: #000; }
+.real-mirror video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+.real-mirror__glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.05) 40%, transparent 48%, transparent 62%, rgba(255, 255, 255, 0.03) 67%, transparent 72%),
+    radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.35) 100%);
+}
+.real-mirror__status {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  transform: translateX(-50%);
+  color: var(--sm-text-2);
+  font-size: 1rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ---------- Painting ---------- */
+
+.painting { margin: 0; position: absolute; inset: 0; display: grid; place-items: center; }
+
+/* Wall: warm plaster, a gallery spotlight from above, the painting hung on it. */
+.painting--wall {
+  align-content: center;
+  gap: 2.2vh;
+  background:
+    radial-gradient(55% 70% at 50% -8%, rgba(255, 228, 180, 0.22), transparent 70%),
+    radial-gradient(120% 90% at 50% 120%, rgba(0, 0, 0, 0.55), transparent 60%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .3  0 0 0 0 .25  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>"),
+    linear-gradient(180deg, #2a241e, #1a1612);
+}
+.painting--wall .painting__frame {
+  height: min(80vh, 118vw);
+  aspect-ratio: 3 / 4;
+  box-shadow:
+    0 2.5vh 5vh rgba(0, 0, 0, 0.55),
+    0 0.6vh 1.2vh rgba(0, 0, 0, 0.45);
+}
+
+/* Fill: the frame is the edge of the screen; the Echo Show becomes the painting. */
+.painting--fill .painting__frame { width: 100vw; height: 100vh; }
+
+.painting__frame {
+  position: relative;
+  display: grid;
+  padding: var(--frame-w, 3.2vmin);
+  background: #111;
+}
+.painting__liner {
+  position: relative;
+  display: grid;
+  padding: var(--liner-w, 0.9vmin);
+  background: var(--liner, #d9ccb0);
+  box-shadow: inset 0 0 0.6vmin rgba(0, 0, 0, 0.55);
+}
+.painting__canvas {
+  position: relative;
+  overflow: hidden;
+  background: #1b1714;
+  box-shadow: inset 0 0 2vmin rgba(0, 0, 0, 0.55);
+}
+/* Slightly oversized so brush displacement never drags empty pixels in at the edges. */
+.painting__media {
+  position: absolute;
+  inset: -2.5%;
+  width: 105%;
+  height: 105%;
+  object-fit: cover;
+}
+.painting__media img,
+.painting__media video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.painting__placeholder {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(40% 30% at 50% 35%, rgba(239, 214, 168, 0.18), transparent 70%),
+    linear-gradient(180deg, #2b241d, #15110d);
+}
+.painting__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  font-family: var(--sm-font-display);
+  font-size: 2.4vmin;
+  line-height: 1.5;
+  color: rgba(239, 214, 168, 0.75);
+}
+
+/* Impasto: lit brush strokes + linen weave on top of the paint. */
+.painting__texture {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.62;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='640'><filter id='b'><feTurbulence type='fractalNoise' baseFrequency='.0035 .085' numOctaves='3' seed='5' stitchTiles='stitch'/><feDiffuseLighting lighting-color='%23ffffff' surfaceScale='2.4'><feDistantLight azimuth='225' elevation='52'/></feDiffuseLighting></filter><rect width='100%' height='100%' filter='url(%23b)'/></svg>") 0 0 / 640px 640px,
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/><feDiffuseLighting lighting-color='%23ffffff' surfaceScale='1.2'><feDistantLight azimuth='225' elevation='60'/></feDiffuseLighting></filter><rect width='100%' height='100%' filter='url(%23w)'/></svg>") 0 0 / 180px 180px;
+}
+.painting--watercolor .painting__texture,
+.painting--charcoal .painting__texture {
+  /* cold-pressed paper instead of linen */
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='.045' numOctaves='4' stitchTiles='stitch'/><feDiffuseLighting lighting-color='%23fffaf0' surfaceScale='1.6'><feDistantLight azimuth='225' elevation='64'/></feDiffuseLighting></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>") 0 0 / 300px 300px;
+}
+.painting--vintage .painting__texture { opacity: 0.35; }
+
+/* Varnish sheen and gentle vignette, as under gallery light. */
+.painting__varnish {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, transparent 35%, rgba(255, 250, 235, 0.06) 45%, transparent 55%),
+    radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(20, 12, 4, 0.45) 100%);
+}
+.painting--vintage .painting__varnish {
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(40, 24, 8, 0.6) 100%),
+    linear-gradient(rgba(120, 80, 30, 0.08), rgba(120, 80, 30, 0.08));
+}
+
+/* ---------- Frames ---------- */
+
+/* Gilded: a raised, lit moulding (top-left catches the light), a dark
+   sight-edge step, aged gold leaf texture and a linen liner. */
+.painting--frame-gilded .painting__frame {
+  --frame-w: 5.2vmin;
+  --liner-w: 1.1vmin;
+  --liner: linear-gradient(135deg, #ece3cd, #cfc2a2);
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.6' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .22  0 0 0 0 .05  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>") 0 0 / 260px 260px,
+    radial-gradient(120% 120% at 20% 10%, #f7e3a3 0%, #d9b45c 28%, #a47b2f 55%, #c9a24e 72%, #6f4f18 100%);
+  background-blend-mode: multiply, normal;
+  box-shadow:
+    inset 0.55vmin 0.55vmin 0.9vmin rgba(255, 244, 205, 0.75),
+    inset -0.7vmin -0.7vmin 1.1vmin rgba(58, 36, 6, 0.8),
+    inset 0 0 0 0.25vmin #4a320c;
+}
+.painting--frame-gilded .painting__liner {
+  box-shadow:
+    0 0 0 0.35vmin #3b2808,
+    0 0 0 0.75vmin #d8b664,
+    0 0 0 1vmin #5a3f10,
+    inset 0 0 0.8vmin rgba(0, 0, 0, 0.45);
+  margin: 1vmin;
+}
+.painting--frame-gilded.painting--wall .painting__frame {
+  --frame-w: 6.4vmin;
+  box-shadow:
+    inset 0.6vmin 0.6vmin 1vmin rgba(255, 244, 205, 0.75),
+    inset -0.8vmin -0.8vmin 1.2vmin rgba(58, 36, 6, 0.8),
+    inset 0 0 0 0.25vmin #4a320c,
+    0 2.8vh 5.5vh rgba(0, 0, 0, 0.65),
+    0 0.6vh 1.2vh rgba(0, 0, 0, 0.45);
+}
+
+.painting--frame-walnut .painting__frame {
+  --frame-w: 4vmin;
+  --liner: #efe7d6;
+  background:
+    repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.18) 0 0.25vmin, transparent 0.25vmin 1.1vmin, rgba(255, 255, 255, 0.05) 1.1vmin 1.3vmin, transparent 1.3vmin 2vmin),
+    linear-gradient(135deg, #5b3a22, #3b2415 45%, #6a4428 70%, #2d1b10);
+  box-shadow:
+    inset 0.4vmin 0.4vmin 0.7vmin rgba(255, 220, 180, 0.22),
+    inset -0.5vmin -0.5vmin 0.9vmin rgba(0, 0, 0, 0.6),
+    inset 0 0 0 0.3vmin rgba(0, 0, 0, 0.55);
+}
+
+.painting--frame-modern .painting__frame {
+  --frame-w: 1.3vmin;
+  --liner-w: 6vmin;
+  --liner: #f3f1ec;
+  background: linear-gradient(135deg, #1d1d1f, #0b0b0c);
+  box-shadow: inset 0 0 0 0.15vmin #2f2f33;
+}
+.painting--frame-modern .painting__liner { box-shadow: inset 0 0.3vmin 0.8vmin rgba(0, 0, 0, 0.25); }
+
+.painting--frame-none .painting__frame {
+  --frame-w: 0px;
+  --liner-w: 0px;
+  background: transparent;
+}
+.painting--frame-none.painting--wall .painting__frame { box-shadow: 1vmin 2.5vh 5vh rgba(0, 0, 0, 0.65); }
+
+/* ---------- Plaque ---------- */
+
+.painting__plaque {
+  display: grid;
+  justify-items: center;
+  gap: 0.35vh;
+  padding: 0.9vh 2.2vmin;
+  border-radius: 0.3vmin;
+  background: linear-gradient(135deg, #7a5a22, #e3c67e 30%, #a88540 60%, #f0d894 80%, #7a5a22);
+  box-shadow: 0 0.4vh 1vh rgba(0, 0, 0, 0.5), inset 0 0 0 0.15vmin rgba(60, 40, 10, 0.6);
+  color: #2b1d08;
+  text-align: center;
+}
+.painting__plaque-title { font-family: var(--sm-font-display); font-size: 2.1vmin; font-weight: 600; letter-spacing: 0.04em; }
+.painting__plaque-sub { font-size: 1.15vmin; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.8; }
+
+/* ---------- Clock ---------- */
+
+.portrait-clock {
+  position: absolute;
+  top: 5vh;
+  right: 5vw;
+  display: grid;
+  justify-items: end;
+  color: rgba(255, 248, 235, 0.88);
+  text-shadow: 0 0.3vh 1.5vh rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+.portrait-clock__time { font-family: var(--sm-font-display); font-size: 7vmin; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
+.portrait-clock__date { font-size: 1.5vmin; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.8; }
+.portrait-mode--painting.painting-fill .portrait-clock { top: 7vh; right: 7vw; }
+
+/* ---------- Controls ---------- */
+
+.portrait-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 4vh;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: 92vw;
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  background: rgba(14, 12, 10, 0.78);
+  border: 1px solid var(--sm-border-strong);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--sm-shadow-lg);
+  animation: sm-toast 220ms var(--sm-ease);
+}
+.portrait-controls__note { display: inline-flex; gap: 0.4rem; align-items: center; color: var(--sm-warning); font-size: 0.85rem; padding: 0 0.5rem; }
+
+@media (orientation: portrait) {
+  .painting--wall .painting__frame { height: auto; width: 82vw; }
+  .portrait-controls { border-radius: 1.2rem; }
+}

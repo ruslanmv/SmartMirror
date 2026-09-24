@@ -19,6 +19,10 @@ All notable changes to SmartMirror will be documented here.
 - Backwards-compatible camera layer: modern and legacy `getUserMedia`, constraint
   fallback, camera probing; web camera usable in the browser, the Echo WebView and
   Alexa HTML sessions, with native and phone fallbacks.
+- Live mirror on by default; Settings screen; fill-screen Portrait mode with a
+  real-mirror view and framed paintings (oil, watercolour, charcoal, vintage;
+  gilded, walnut and gallery frames; wall or full-screen layout; idle auto-start;
+  `PortraitIntent` for Alexa).
 - Live mirror on the home screen, `/smartmirror/camera-test` diagnostics page and an
   `echo-show-21-alexa` simulator profile for real-time camera testing on Vercel.
 

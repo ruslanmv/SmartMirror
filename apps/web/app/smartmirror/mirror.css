@@ -434,3 +434,8 @@ html[data-dpad="true"] .sm-chip:focus-visible { transform: scale(1.06); }
   .code-slot { width: 2.8rem; height: 3.6rem; font-size: 2rem; }
   .wardrobe-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ================= Home mirror actions & bare shell ================= */
+
+.home__mirror-actions { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
+.mirror-app--bare { display: block; background: #070605; }

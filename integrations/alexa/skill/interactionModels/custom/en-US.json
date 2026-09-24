@@ -20,6 +20,7 @@
         },
         { "name": "WardrobeIntent", "slots": [], "samples": ["show my wardrobe", "open my wardrobe", "show my clothes"] },
         { "name": "PhotoIntent", "slots": [], "samples": ["take my photo", "take a picture", "take a full length photo"] },
+        { "name": "PortraitIntent", "slots": [], "samples": ["show my portrait", "be a mirror", "show the painting", "fill the screen"] },
         { "name": "TryOnIntent", "slots": [], "samples": ["try it on", "try this on", "show it on me"] }
       ],
       "types": []

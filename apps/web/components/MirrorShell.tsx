@@ -8,6 +8,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import { onAlexaDirective, takeStartDirective } from "@/lib/alexa";
 import { DeviceProvider, useDevice } from "@/lib/capabilities";
+import { useSettings } from "@/lib/settings";
 import type { StoredCapture } from "@/lib/storage";
 import { timeAgo, useCapture } from "@/lib/use-local";
 
@@ -31,6 +32,17 @@ function Chrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const capture = useCapture();
 
+  // Portrait mode is the whole screen: no top bar, hints or photo rail.
+  if (pathname.startsWith("/smartmirror/portrait")) {
+    return (
+      <div className="mirror-app mirror-app--bare">
+        <DPadFocus />
+        <DeviceBridges />
+        {children}
+      </div>
+    );
+  }
+
   // The home already has a full-size mirror, capture and camera-test own their camera stage,
   // try-on renders the body photo itself, and pairing intentionally stays clean.
   const showPersistentCapture =
@@ -47,6 +59,7 @@ function Chrome({ children }: { children: ReactNode }) {
       <TouchGuard />
       <DeviceBridges />
       <SimulatedNativeCamera />
+      <IdlePortrait />
       <header>
         <TopBar />
         <ConnectivityBanner />
@@ -77,6 +90,34 @@ function PersistentCapture({ capture }: { capture: StoredCapture }) {
       </div>
     </aside>
   );
+}
+
+/** After the configured idle time on the home screen, hang the portrait. */
+function IdlePortrait() {
+  const { settings } = useSettings();
+  const pathname = usePathname();
+  const router = useRouter();
+  const minutes = settings.idleMinutes;
+
+  useEffect(() => {
+    if (!minutes || pathname !== "/smartmirror") return;
+    let timer = window.setTimeout(go, minutes * 60_000);
+    function go() {
+      router.push("/smartmirror/portrait");
+    }
+    const reset = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(go, minutes * 60_000);
+    };
+    const events = ["keydown", "pointerdown", "pointermove", "touchstart", "sm:remote-key"] as const;
+    for (const e of events) window.addEventListener(e, reset, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      for (const e of events) window.removeEventListener(e, reset);
+    };
+  }, [minutes, pathname, router]);
+
+  return null;
 }
 
 function TopBar() {
@@ -203,6 +244,7 @@ const INTENT_ROUTES: Record<AlexaDirective["intent"], string> = {
   WardrobeIntent: "/smartmirror/wardrobe",
   TryOnIntent: "/smartmirror/tryon",
   PhotoIntent: "/smartmirror/capture",
+  PortraitIntent: "/smartmirror/portrait",
 };
 
 /** Simulator handshake + Alexa intent routing. */

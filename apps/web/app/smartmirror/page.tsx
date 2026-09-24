@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Button, Chip, TileContent } from "@smartmirror/ui";
+import { Badge, Button, Chip, Icon, TileContent } from "@smartmirror/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { partOfDay, useNow } from "@/components/Clock";
 import { Mirror } from "@/components/Mirror";
 import { useCameraStream } from "@/components/useCameraStream";
+import { useSettings } from "@/lib/settings";
 import { api } from "@/lib/api";
 import { useDevice } from "@/lib/capabilities";
 import { timeAgo, useCapture, useLooks } from "@/lib/use-local";
@@ -29,27 +30,14 @@ export default function HomePage() {
   const { capabilities, runtime, hasNativeBridge, hasWebCamera } = useDevice();
   const [pieces, setPieces] = useState<number | null>(null);
 
-  // Live mirror: the real-time camera in the arch. Opt-in (it prompts for
-  // permission) and remembered per screen.
+  // Live mirror: it is a mirror, so the real-time camera is on by default.
+  // Turn it off in Settings (or with the button below the arch).
+  const { settings, update, ready: settingsReady } = useSettings();
   const liveAvailable = capabilities.camera && hasWebCamera;
-  const [liveMirror, setLiveMirror] = useState(false);
-  useEffect(() => {
-    try {
-      setLiveMirror(localStorage.getItem("sm:liveMirror") === "1");
-    } catch {
-      /* storage unavailable */
-    }
-  }, []);
-  const toggleLive = () => {
-    const next = !liveMirror;
-    setLiveMirror(next);
-    try {
-      localStorage.setItem("sm:liveMirror", next ? "1" : "0");
-    } catch {
-      /* storage unavailable */
-    }
-  };
-  const live = useCameraStream(liveMirror && liveAvailable);
+  const liveMirror = settings.liveMirror;
+  const toggleLive = () => update({ liveMirror: !liveMirror });
+  const live = useCameraStream(settingsReady && liveMirror && liveAvailable);
+  const liveFailed = live.state === "denied" || live.state === "unavailable";
 
   useEffect(() => {
     api
@@ -64,7 +52,7 @@ export default function HomePage() {
     <div className="home">
       <section className="home__mirror" aria-label="Your mirror">
         <div className="portrait-wrap">
-          {liveMirror && liveAvailable ? (
+          {liveMirror && liveAvailable && !liveFailed ? (
             <Mirror
               label="Live mirror"
               caption={
@@ -86,11 +74,16 @@ export default function HomePage() {
               }
             />
           )}
-          {liveAvailable && (
-            <Button size="sm" variant={liveMirror ? "primary" : "default"} icon="camera" onClick={toggleLive}>
-              {liveMirror ? "Live mirror on" : "Live mirror"}
-            </Button>
-          )}
+          <div className="home__mirror-actions">
+            {liveAvailable && (
+              <Button size="sm" variant={liveMirror && !liveFailed ? "primary" : "default"} icon="camera" onClick={toggleLive}>
+                {liveMirror ? (liveFailed ? "Camera blocked" : "Live mirror on") : "Live mirror off"}
+              </Button>
+            )}
+            <Link href="/smartmirror/portrait" className="sm-btn sm-btn--sm">
+              <Icon name="monitor" /> Fill screen
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -140,6 +133,9 @@ export default function HomePage() {
           ))}
           <Link href="/smartmirror/pairing" className="sm-chip" style={{ textDecoration: "none" }}>
             Connection
+          </Link>
+          <Link href="/smartmirror/settings" className="sm-chip" style={{ textDecoration: "none" }}>
+            Settings
           </Link>
         </div>
       </section>

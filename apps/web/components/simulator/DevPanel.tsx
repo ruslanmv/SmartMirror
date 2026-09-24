@@ -91,6 +91,7 @@ const SAMPLES = [
   "something for the office",
   "show my wardrobe",
   "take my photo",
+  "show my portrait",
   "try it on",
 ];
 
@@ -98,6 +99,7 @@ export function parseUtterance(text: string): AlexaDirective {
   const t = text.toLowerCase().replace(/^alexa,?\s*(ask|tell|open)\s+smart\s*mirror\s*(to|for|what)?\s*/i, "").trim();
   if (!t || /^(open|launch|start)$/.test(t)) return { intent: "LaunchRequest" };
   if (/wardrobe|closet|my clothes/.test(t)) return { intent: "WardrobeIntent" };
+  if (/portrait|painting|mirror mode|be a mirror|fill (the )?screen/.test(t)) return { intent: "PortraitIntent" };
   if (/photo|picture|selfie/.test(t)) return { intent: "PhotoIntent" };
   if (/try (it|this|that) on|try on/.test(t)) return { intent: "TryOnIntent" };
   if (/^(go )?home$/.test(t)) return { intent: "HomeIntent" };

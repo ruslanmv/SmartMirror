@@ -19,7 +19,7 @@ export const REMOTE_KEYS: readonly RemoteKey[] = [
 ];
 
 export interface AlexaDirective {
-  intent: "LaunchRequest" | "StyleIntent" | "WardrobeIntent" | "TryOnIntent" | "PhotoIntent" | "HomeIntent";
+  intent: "LaunchRequest" | "StyleIntent" | "WardrobeIntent" | "TryOnIntent" | "PhotoIntent" | "HomeIntent" | "PortraitIntent";
   prompt?: string;
 }
 

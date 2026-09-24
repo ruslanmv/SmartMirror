@@ -13,6 +13,8 @@ Vercel. The same pages run in a browser, inside the Echo Show shell
 | `/simulator/echo-show-21-alexa` | The UI as launched by the Alexa skill (Alexa HTML runtime) |
 | `/simulator/browser` | Responsive desktop/laptop/tablet/phone frames |
 | `/smartmirror/camera-test` | Live camera diagnostics for the current device |
+| `/smartmirror/portrait` | Fill screen: a real mirror, or a framed painting on the wall |
+| `/smartmirror/settings` | Live mirror default, fill-screen mode, painting style/frame/photo |
 | `/alexa` | Entry URL for `Alexa.Presentation.HTML.Start` |
 | `/companion/[code]` | Phone-side capture page opened from the mirror's QR code |
 | `/api/*` | BFF: health, session/pairing, allow-listed MCP tools, media relay |
@@ -45,6 +47,22 @@ developer panel:
 
 Echo profiles emulate the shell's `window.SmartMirrorNative` bridge, so the
 native-camera path runs the same JavaScript as on the Echo.
+
+## Mirror and portrait modes
+
+- **Live mirror is on by default**: the home arch shows the live camera. Turn it
+  off in **Settings** (or with the button under the arch).
+- **Fill screen** (`/smartmirror/portrait`) turns a wall-mounted Echo Show into:
+  - **Real mirror**: the live camera, mirrored, edge to edge, nothing else;
+  - **Framed painting**: the live camera, the latest photo, a saved try-on look,
+    or a favourite photo, rendered as **oil, watercolour, charcoal, vintage print
+    or photograph**, in a **gilded, walnut, gallery-black or unframed** frame,
+    either filling the screen or hung on a lit wall with a brass plaque.
+- It can start automatically after 2–30 idle minutes, and shows an optional clock.
+  Any key, tap or pointer movement reveals the controls; Back or Exit leaves.
+- Painting effects are SVG filters, so they work on live video too; choose
+  "Photograph" on slow devices. All settings and photos stay on the device.
+- Voice: "Alexa, ask Smart Mirror to show my portrait".
 
 ## Cameras
 
