@@ -27,8 +27,16 @@
   grid-template-rows: auto auto;
   gap: 0.9rem;
   align-self: start;
+
+  /*
+   * mirror.css gives every direct child of .mirror-main height: 100%.
+   * Override that here so the photo card hugs the portrait instead of
+   * stretching to the page height and leaving a large empty area.
+   */
+  height: auto;
   min-width: 0;
   min-height: 0;
+
   padding: 0.6rem;
   border-radius: calc(var(--sm-radius-lg) + 0.25rem);
   border: 1px solid rgba(239, 214, 168, 0.12);
@@ -42,9 +50,9 @@
 }
 
 /*
- * Never stretch the mirror to the height of the surrounding screen.
- * The previous 100% height could squeeze a 3:4 portrait into the narrow rail,
- * which made object-fit: cover crop the person heavily as routes changed.
+ * Keep exactly the same 3:4 mirror geometry used on the home screen.
+ * The image itself intentionally inherits .portrait > img from mirror.css
+ * (object-fit: cover), so the person has the same framing on every route.
  */
 .persistent-capture__image .portrait {
   width: 100%;
@@ -54,11 +62,14 @@
   aspect-ratio: 3 / 4;
 }
 
-/* Preserve the full captured person in the persistent rail. */
+/*
+ * Match the home mirror framing. Do not use object-fit: contain here:
+ * captures are often landscape, which would letterbox them inside the
+ * portrait arch and make the photo look different after navigation.
+ */
 .persistent-capture__image .portrait > img {
-  object-fit: contain;
-  object-position: center top;
-  background: #0f0d0b;
+  object-fit: cover;
+  object-position: center center;
 }
 
 .persistent-capture__meta {
