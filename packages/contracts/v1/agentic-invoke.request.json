@@ -1,0 +1,8 @@
+{
+  "operation": "agentic.invoke",
+  "params": {
+    "tool": "hp.smartmirror.style_suggest",
+    "arguments": { "profile_id": "local-user", "prompt": "black mini skirt for dinner", "limit": 3 },
+    "timeout_s": 30
+  }
+}

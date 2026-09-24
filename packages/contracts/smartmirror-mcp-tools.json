@@ -18,6 +18,10 @@
       "required": ["outfit_id", "body_capture_ref"]
     },
     {
+      "name": "hp.smartmirror.profile_delete",
+      "required": ["confirm"]
+    },
+    {
       "name": "hp.smartmirror.job_get",
       "required": ["job_id"]
     }

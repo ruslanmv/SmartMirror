@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
@@ -10,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from services.api.app.database import get_db
 from services.api.app.models import GenerationJob, WardrobeItem
+from smartmirror.privacy import delete_profile_data, record
+from smartmirror.storage import get_store
 from smartmirror.stylist.service import suggest
 from smartmirror.tryon.service import create_tryon_job
 
@@ -57,6 +60,8 @@ async def _wardrobe_add(args: dict[str, Any], db: Session) -> Any:
         metadata_json=dict(args.get("metadata") or {}),
     )
     db.add(item)
+    db.flush()
+    record(db, item.profile_id, "wardrobe.item_added", item.id)
     db.commit()
     db.refresh(item)
     return _item_dict(item)
@@ -106,6 +111,13 @@ async def _job_get(args: dict[str, Any], db: Session) -> Any:
         "result": job.result_json,
         "error_code": job.error_code,
     }
+
+
+async def _profile_delete(args: dict[str, Any], db: Session) -> Any:
+    if args.get("confirm") != "DELETE":
+        raise ValueError('confirm must be "DELETE"')
+    profile_id = str(args.get("profile_id") or "local-user")
+    return {"deleted": delete_profile_data(db, get_store(), profile_id)}
 
 
 TOOLS: dict[str, dict[str, Any]] = {
@@ -161,6 +173,15 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
         "handler": _tryon_create,
+    },
+    "hp.smartmirror.profile_delete": {
+        "description": "Delete everything SmartMirror stores for a profile (wardrobe, photos, looks, history).",
+        "inputSchema": {
+            "type": "object",
+            "required": ["confirm"],
+            "properties": {"profile_id": {"type": "string"}, "confirm": {"type": "string", "enum": ["DELETE"]}},
+        },
+        "handler": _profile_delete,
     },
     "hp.smartmirror.job_get": {
         "description": "Poll the status of an asynchronous SmartMirror job such as a try-on.",

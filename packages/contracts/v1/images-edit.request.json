@@ -1,0 +1,8 @@
+{
+  "operation": "images.edit",
+  "resource_uri": "ollabridge-media://m_7f3a0c1d",
+  "params": {
+    "prompt": "Dress the person in: a black silk slip dress, a charcoal blazer. Keep face, hair, body, pose and background unchanged.",
+    "workflow": "edit"
+  }
+}

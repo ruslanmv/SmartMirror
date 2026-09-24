@@ -13,6 +13,7 @@ export const TOOLS = {
   styleSuggest: "hp.smartmirror.style_suggest",
   tryonCreate: "hp.smartmirror.tryon_create",
   jobGet: "hp.smartmirror.job_get",
+  profileDelete: "hp.smartmirror.profile_delete",
 } as const;
 
 export type ToolName = (typeof TOOLS)[keyof typeof TOOLS];

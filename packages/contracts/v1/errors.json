@@ -1,0 +1,20 @@
+{
+  "codes": {
+    "TOOL_NOT_ALLOWED": "tool name invalid or not in HOMEPILOT_MIRROR_ALLOWED_TOOLS",
+    "CAPABILITY_UNAVAILABLE": "the operation is switched off on the node",
+    "TOOL_FAILED": "the tool returned an error or no result",
+    "NODE_OFFLINE": "the HomePilot node is not connected",
+    "RESOURCE_REJECTED": "an input image was refused (type, size, checksum)",
+    "IMAGE_EDIT_FAILED": "the image edit did not produce an image",
+    "JOB_TIMEOUT": "the job did not finish in time",
+    "JOB_CANCELLED": "the job was cancelled",
+    "NODE_RESTARTED": "the node restarted while the job was running"
+  },
+  "bff": {
+    "tool_not_allowed": 403,
+    "capability_unavailable": 503,
+    "node_offline": 503,
+    "timeout": 504,
+    "upstream": 502
+  }
+}

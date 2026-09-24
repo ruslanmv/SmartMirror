@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     smartmirror_preview_ttl_hours: int = 168
     smartmirror_max_upload_mb: int = 25
 
+    # Media storage: "local" (default, a folder on the owner's PC) or "s3" (MinIO/S3).
+    smartmirror_storage: str = "local"
+    smartmirror_media_dir: str = "./media"
+
 
 @lru_cache
 def get_settings() -> Settings:

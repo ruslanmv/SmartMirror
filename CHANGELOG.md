@@ -10,6 +10,9 @@ All notable changes to SmartMirror will be documented here.
   "type a code" fallback (`/pair`), SmartMirror client identity, sealed pending
   pairing cookie, paired-screen card with "Forget this screen".
 - Stylist persona template for HomePilot (`integrations/homepilot/personas`).
+- Backend foundations: assets, classification runs, outfit sets, shopping candidates,
+  capture sessions, audit events (migration `0002_foundations`); media store; retention
+  sweep worker; delete-all endpoint and `hp.smartmirror.profile_delete`; contracts v1.
 - Tool calls from anywhere through HomePilot's `agentic.invoke` node job (OllaBridge mirror
   plane): node discovery, remembered node, actionable errors; "Not paired" status pill.
 - Stylist answers from the owner's HomePilot persona (OllaBridge `/v1/chat/completions`),

@@ -22,3 +22,6 @@ node_modules/
 .vercel/
 *.tsbuildinfo
 next-env.d.ts
+
+# Local SQLite databases
+*.db

@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from integrations.homepilot.mcp_server.router import router as mcp_router
+from smartmirror.privacy import delete_profile_data, sweep_expired
+from smartmirror.storage import get_store
 from smartmirror.stylist.service import suggest
 from smartmirror.tryon.service import create_tryon_job
 
@@ -123,3 +127,20 @@ def get_job(job_id: str, db: Session = Depends(get_db)) -> JobOut:
         result=job.result_json,
         error_code=job.error_code,
     )
+
+
+DbSession = Annotated[Session, Depends(get_db)]
+
+
+@app.delete("/v1/profile/data")
+def delete_profile(db: DbSession, profile_id: str = "local-user", confirm: str = "") -> dict:
+    """Delete everything SmartMirror stores for a profile. Requires confirm=DELETE."""
+    if confirm != "DELETE":
+        raise HTTPException(status_code=400, detail='Add ?confirm=DELETE to delete everything')
+    return {"deleted": delete_profile_data(db, get_store(), profile_id)}
+
+
+@app.post("/v1/maintenance/sweep")
+def sweep(db: DbSession) -> dict:
+    """Apply retention: expired body captures and previews are removed."""
+    return {"expired_assets": sweep_expired(db, get_store())}

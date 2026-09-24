@@ -1,0 +1,15 @@
+{
+  "job_id": "job_0123456789abcdef",
+  "operation": "agentic.invoke",
+  "status": "completed",
+  "progress": 100,
+  "output": {
+    "tool": "hp.smartmirror.style_suggest",
+    "result": {
+      "request_id": "style_1",
+      "normalized_intent": { "colors": ["black"], "categories": ["skirt"], "styles": [], "raw": "black mini skirt for dinner" },
+      "outfits": [{ "id": "outfit_1", "item_ids": ["garment_1", "garment_2"], "score": 0.8, "explanation": "…" }]
+    }
+  },
+  "error": ""
+}

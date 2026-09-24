@@ -96,6 +96,10 @@ function callDemo(tool: string, args: Record<string, unknown>): unknown {
       return demoCreateTryOn(String(args.outfit_id));
     case TOOLS.jobGet:
       return demoJob(String(args.job_id));
+    case TOOLS.profileDelete:
+      // Demo data lives in this server process and resets on restart; the
+      // screen clears its own photos and looks.
+      return { deleted: {} };
     default:
       throw new BffError(`Tool not available in demo mode: ${tool}`, 501, "not_implemented");
   }

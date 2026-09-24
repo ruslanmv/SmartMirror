@@ -1,0 +1,8 @@
+{
+  "job_id": "job_fedcba9876543210",
+  "operation": "agentic.invoke",
+  "status": "failed",
+  "progress": 10,
+  "output": null,
+  "error": "ToolNotAllowed: TOOL_NOT_ALLOWED: hp.smartmirror.profile_delete"
+}
