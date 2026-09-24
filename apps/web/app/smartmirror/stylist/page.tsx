@@ -151,6 +151,14 @@ function Stylist() {
 
         <section className="scroll-area" aria-live="polite" aria-busy={busy}>
           <div className="results">
+            {params.get("from") === "snap" && (
+              <div className="banner banner--info" style={{ margin: 0 }}>
+                <Icon name="camera" />
+                <span>
+                  <b>Your new photo is ready.</b> Pick an occasion, then press <b>Try it on</b> to see the outfit on you.
+                </span>
+              </div>
+            )}
             {error ? (
               <div className="empty">
                 <div className="empty__icon">

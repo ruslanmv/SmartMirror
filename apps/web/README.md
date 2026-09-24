@@ -50,6 +50,15 @@ native-camera path runs the same JavaScript as on the Echo.
 
 ## Mirror and portrait modes
 
+See `docs/ux/mirror-experience.md` for the mental model (ambient → engage →
+capture → customise → keep) and the interaction rules behind these screens.
+
+- **Snap from the mirror**: with the live mirror on, tap the arch, press OK, or
+  say "Alexa, take my photo" → 3·2·1 with beeps → flash → the photo freezes in
+  the arch with one next step: **Style me · Try it on · Make it art**, plus
+  Retake / Done. Back cancels; the review returns to the live mirror after 20 s.
+- A red **Camera on** pill shows whenever any screen streams the camera.
+
 - **Live mirror is on by default**: the home arch shows the live camera. Turn it
   off in **Settings** (or with the button under the arch).
 - **Fill screen** (`/smartmirror/portrait`) turns a wall-mounted Echo Show into:

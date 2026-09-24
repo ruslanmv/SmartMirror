@@ -439,3 +439,21 @@ html[data-dpad="true"] .sm-chip:focus-visible { transform: scale(1.06); }
 
 .home__mirror-actions { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
 .mirror-app--bare { display: block; background: #070605; }
+
+/* ================= Snap mirror ================= */
+
+.snap-mirror { height: 100%; min-height: 0; display: grid; justify-items: center; cursor: pointer; }
+.snap-mirror.is-review { cursor: default; }
+.snap-mirror .portrait { height: 100%; width: auto; max-width: 100%; transition: box-shadow 200ms var(--sm-ease); }
+.snap-mirror:not(.is-review):hover .portrait { box-shadow: 0 0 0 0.5rem rgba(255, 245, 225, 0.04), 0 0 0 calc(0.5rem + 1px) rgba(239, 214, 168, 0.35), inset 0 0 5rem rgba(0, 0, 0, 0.6), var(--sm-shadow-lg); }
+.snap-next { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; animation: sm-toast 220ms var(--sm-ease); }
+.snap-hint { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; margin: 0; font-size: 0.8rem; color: var(--sm-text-3); text-align: center; }
+.home__mirror .portrait-wrap { grid-template-rows: minmax(0, 1fr) auto auto; }
+
+@media (max-width: 1100px), (orientation: portrait) {
+  .snap-mirror .portrait { width: min(19rem, 70vw); height: auto; }
+}
+
+/* Privacy indicator, like the hardware camera light on laptops and phones. */
+.camera-on { display: inline-flex; align-items: center; gap: 0.45em; padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid rgba(240, 140, 128, 0.35); background: rgba(240, 140, 128, 0.1); font: 600 0.75rem/1 var(--sm-font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: #f6c4bc; white-space: nowrap; }
+.camera-on__dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #ff5b4a; box-shadow: 0 0 0.5rem #ff5b4a; animation: sm-pulse 2s ease-in-out infinite; }

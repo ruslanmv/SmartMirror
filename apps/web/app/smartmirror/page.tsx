@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { partOfDay, useNow } from "@/components/Clock";
 import { Mirror } from "@/components/Mirror";
+import { SnapMirror } from "@/components/SnapMirror";
 import { useCameraStream } from "@/components/useCameraStream";
 import { useSettings } from "@/lib/settings";
 import { api } from "@/lib/api";
@@ -27,7 +28,7 @@ export default function HomePage() {
   const { greeting, when } = partOfDay(now);
   const capture = useCapture();
   const looks = useLooks();
-  const { capabilities, runtime, hasNativeBridge, hasWebCamera } = useDevice();
+  const { capabilities, runtime, hasNativeBridge, hasWebCamera, ready: deviceReady } = useDevice();
   const [pieces, setPieces] = useState<number | null>(null);
 
   // Live mirror: it is a mirror, so the real-time camera is on by default.
@@ -38,6 +39,23 @@ export default function HomePage() {
   const toggleLive = () => update({ liveMirror: !liveMirror });
   const live = useCameraStream(settingsReady && liveMirror && liveAvailable);
   const liveFailed = live.state === "denied" || live.state === "unavailable";
+
+  // "?snap=1" (Alexa "take my photo", deep links): count down on the live
+  // mirror. The decision waits for camera detection; if there is no usable
+  // camera the request falls back to the capture screen (phone QR).
+  const [autoSnap, setAutoSnap] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("snap") !== "1") return;
+    router.replace("/smartmirror");
+    setAutoSnap(true);
+  }, [router]);
+  useEffect(() => {
+    if (!autoSnap || !settingsReady || !deviceReady) return;
+    if (!liveMirror || !liveAvailable || liveFailed) {
+      setAutoSnap(false);
+      router.push("/smartmirror/capture");
+    }
+  }, [autoSnap, settingsReady, deviceReady, liveMirror, liveAvailable, liveFailed, router]);
 
   useEffect(() => {
     api
@@ -53,37 +71,45 @@ export default function HomePage() {
       <section className="home__mirror" aria-label="Your mirror">
         <div className="portrait-wrap">
           {liveMirror && liveAvailable && !liveFailed ? (
-            <Mirror
-              label="Live mirror"
-              caption={
-                live.state === "live" ? (
-                  <Badge tone="accent">Live mirror</Badge>
-                ) : (
-                  <Badge>{live.state === "starting" ? "Starting camera…" : "Camera unavailable"}</Badge>
-                )
-              }
-            >
-              <video ref={live.setVideo} muted playsInline autoPlay />
-            </Mirror>
-          ) : (
-            <Mirror
-              imageUrl={capture?.dataUrl}
-              label={capture ? "Your latest photo" : "Empty mirror"}
-              caption={
-                capture ? <Badge tone="accent">Latest photo · {timeAgo(capture.takenAt)}</Badge> : <Badge>No photo yet</Badge>
+            <SnapMirror
+              videoRef={live.videoRef}
+              setVideo={live.setVideo}
+              streaming={live.state === "live"}
+              starting={live.state === "starting"}
+              autoSnap={autoSnap}
+              onAutoSnapConsumed={() => setAutoSnap(false)}
+              extraActions={
+                <>
+                  <Button size="sm" variant="ghost" icon="close" onClick={toggleLive}>
+                    Mirror off
+                  </Button>
+                  <Link href="/smartmirror/portrait" className="sm-btn sm-btn--sm sm-btn--ghost">
+                    <Icon name="monitor" /> Fill screen
+                  </Link>
+                </>
               }
             />
+          ) : (
+            <>
+              <Mirror
+                imageUrl={capture?.dataUrl}
+                label={capture ? "Your latest photo" : "Empty mirror"}
+                caption={
+                  capture ? <Badge tone="accent">Latest photo · {timeAgo(capture.takenAt)}</Badge> : <Badge>No photo yet</Badge>
+                }
+              />
+              <div className="home__mirror-actions">
+                {liveAvailable && (
+                  <Button size="sm" icon="camera" onClick={toggleLive}>
+                    {liveMirror && liveFailed ? "Camera blocked · retry" : "Turn mirror on"}
+                  </Button>
+                )}
+                <Link href="/smartmirror/portrait" className="sm-btn sm-btn--sm">
+                  <Icon name="monitor" /> Fill screen
+                </Link>
+              </div>
+            </>
           )}
-          <div className="home__mirror-actions">
-            {liveAvailable && (
-              <Button size="sm" variant={liveMirror && !liveFailed ? "primary" : "default"} icon="camera" onClick={toggleLive}>
-                {liveMirror ? (liveFailed ? "Camera blocked" : "Live mirror on") : "Live mirror off"}
-              </Button>
-            )}
-            <Link href="/smartmirror/portrait" className="sm-btn sm-btn--sm">
-              <Icon name="monitor" /> Fill screen
-            </Link>
-          </div>
         </div>
       </section>
 

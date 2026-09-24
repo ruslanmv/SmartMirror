@@ -20,6 +20,27 @@ export interface TrackInfo {
   deviceId: string | null;
 }
 
+// Privacy indicator: how many live streams are open right now.
+let activeStreams = 0;
+const CAMERA_ACTIVITY = "sm:camera-activity";
+
+function setActive(delta: number) {
+  activeStreams = Math.max(0, activeStreams + delta);
+  window.dispatchEvent(new CustomEvent(CAMERA_ACTIVITY, { detail: activeStreams }));
+}
+
+/** True while any screen is streaming the camera (drives the "Camera on" pill). */
+export function useCameraActive(): boolean {
+  const [active, setActiveState] = useState(false);
+  useEffect(() => {
+    setActiveState(activeStreams > 0);
+    const on = (e: Event) => setActiveState((e as CustomEvent<number>).detail > 0);
+    window.addEventListener(CAMERA_ACTIVITY, on);
+    return () => window.removeEventListener(CAMERA_ACTIVITY, on);
+  }, []);
+  return active;
+}
+
 const ERROR_STATE: Record<CameraErrorKind, StreamState> = {
   denied: "denied",
   insecure: "unavailable",
@@ -51,6 +72,7 @@ export function useCameraStream(active: boolean, deviceId: string | null = null)
       return;
     }
     let cancelled = false;
+    let counted = false;
     setState("starting");
     setError(null);
     openCameraStream({ deviceId })
@@ -71,6 +93,8 @@ export function useCameraStream(active: boolean, deviceId: string | null = null)
           deviceId: settings.deviceId ?? null,
         });
         setState("live");
+        counted = true;
+        setActive(1);
         // Labels only become available after permission, so list devices now.
         const probe = await probeCamera();
         if (!cancelled) setDevices(probe.devices);
@@ -83,6 +107,7 @@ export function useCameraStream(active: boolean, deviceId: string | null = null)
       });
     return () => {
       cancelled = true;
+      if (counted) setActive(-1);
       stopStream(streamRef.current);
       streamRef.current = null;
       setTrack(null);

@@ -19,6 +19,9 @@ All notable changes to SmartMirror will be documented here.
 - Backwards-compatible camera layer: modern and legacy `getUserMedia`, constraint
   fallback, camera probing; web camera usable in the browser, the Echo WebView and
   Alexa HTML sessions, with native and phone fallbacks.
+- Snap from the live mirror (tap / OK / "Alexa, take my photo" → 3·2·1 → next
+  step: Style me, Try it on, Make it art), Camera-on privacy pill, and the
+  mirror UX guide in `docs/ux/mirror-experience.md`.
 - Live mirror on by default; Settings screen; fill-screen Portrait mode with a
   real-mirror view and framed paintings (oil, watercolour, charcoal, vintage;
   gilded, walnut and gallery frames; wall or full-screen layout; idle auto-start;

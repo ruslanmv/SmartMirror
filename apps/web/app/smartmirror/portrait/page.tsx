@@ -174,6 +174,11 @@ export default function PortraitPage() {
               </Button>
             </>
           )}
+          {liveOk && (
+            <Button size="sm" icon="camera" onClick={() => router.push("/smartmirror?snap=1")}>
+              Snap
+            </Button>
+          )}
           <Link href="/smartmirror/settings" className={buttonClass({ size: "sm" })}>
             Settings
           </Link>

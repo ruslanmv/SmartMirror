@@ -17,6 +17,7 @@ import { DPadFocus } from "./DPadFocus";
 import { Mirror } from "./Mirror";
 import { SimulatedNativeCamera } from "./SimulatedNativeCamera";
 import { ToastProvider, useToast } from "./Toast";
+import { useCameraActive } from "./useCameraStream";
 
 export function MirrorShell({ children, runtime }: { children: ReactNode; runtime?: Runtime }) {
   return (
@@ -123,6 +124,7 @@ function IdlePortrait() {
 function TopBar() {
   const { capabilities, health, simulated, profileId } = useDevice();
   const online = capabilities.ollabridgeOnline && capabilities.homepilotOnline;
+  const cameraOn = useCameraActive();
   return (
     <div className="mirror-top">
       <Link href="/smartmirror" aria-label="Smart Mirror home" tabIndex={-1} style={{ textDecoration: "none" }}>
@@ -131,6 +133,11 @@ function TopBar() {
       <div className="mirror-top__right">
         <div className="mirror-top__status">
           {simulated && profileId && <Badge tone="accent">Simulator · {profileId.replace(/-/g, " ")}</Badge>}
+          {cameraOn && (
+            <span className="camera-on" role="status" title="The camera is streaming on this screen only; nothing is recorded.">
+              <span className="camera-on__dot" aria-hidden="true" /> Camera on
+            </span>
+          )}
           {health?.backend === "demo" && <Badge>Demo data</Badge>}
           <StatusPill tone={online ? "ok" : "off"}>{online ? "HomePilot online" : "HomePilot offline"}</StatusPill>
         </div>
@@ -243,7 +250,8 @@ const INTENT_ROUTES: Record<AlexaDirective["intent"], string> = {
   StyleIntent: "/smartmirror/stylist",
   WardrobeIntent: "/smartmirror/wardrobe",
   TryOnIntent: "/smartmirror/tryon",
-  PhotoIntent: "/smartmirror/capture",
+  // Snap on the live mirror; the home screen falls back to /capture without a camera.
+  PhotoIntent: "/smartmirror?snap=1",
   PortraitIntent: "/smartmirror/portrait",
 };
 
