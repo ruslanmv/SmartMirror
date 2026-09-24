@@ -8,9 +8,12 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import { onAlexaDirective, takeStartDirective } from "@/lib/alexa";
 import { DeviceProvider, useDevice } from "@/lib/capabilities";
+import type { StoredCapture } from "@/lib/storage";
+import { timeAgo, useCapture } from "@/lib/use-local";
 
 import { Clock } from "./Clock";
 import { DPadFocus } from "./DPadFocus";
+import { Mirror } from "./Mirror";
 import { SimulatedNativeCamera } from "./SimulatedNativeCamera";
 import { ToastProvider, useToast } from "./Toast";
 
@@ -25,6 +28,18 @@ export function MirrorShell({ children, runtime }: { children: ReactNode; runtim
 }
 
 function Chrome({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const capture = useCapture();
+
+  // The home already has a full-size mirror, capture owns its camera stage,
+  // try-on renders the body photo itself, and pairing intentionally stays clean.
+  const showPersistentCapture =
+    Boolean(capture) &&
+    pathname !== "/smartmirror" &&
+    !pathname.startsWith("/smartmirror/capture") &&
+    !pathname.startsWith("/smartmirror/tryon") &&
+    !pathname.startsWith("/smartmirror/pairing");
+
   return (
     <div className="mirror-app">
       <DPadFocus />
@@ -35,11 +50,31 @@ function Chrome({ children }: { children: ReactNode }) {
         <TopBar />
         <ConnectivityBanner />
       </header>
-      <main className="mirror-main" id="main">
-        {children}
+      <main className={`mirror-main${showPersistentCapture ? " mirror-main--with-capture" : ""}`} id="main">
+        {showPersistentCapture && capture ? <PersistentCapture capture={capture} /> : null}
+        <div className="mirror-main__content">{children}</div>
       </main>
       <HintBar />
     </div>
+  );
+}
+
+function PersistentCapture({ capture }: { capture: StoredCapture }) {
+  return (
+    <aside className="persistent-capture" aria-label="Your latest photo">
+      <div className="persistent-capture__image">
+        <Mirror imageUrl={capture.dataUrl} label="Your latest photo" />
+      </div>
+      <div className="persistent-capture__meta">
+        <div className="persistent-capture__copy">
+          <span className="persistent-capture__label">Latest photo</span>
+          <span className="persistent-capture__time">{timeAgo(capture.takenAt)}</span>
+        </div>
+        <Link href="/smartmirror/capture" className="sm-btn sm-btn--sm">
+          Retake
+        </Link>
+      </div>
+    </aside>
   );
 }
 
