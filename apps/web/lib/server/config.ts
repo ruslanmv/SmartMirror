@@ -45,7 +45,7 @@ export function getConfig(): ServerConfig {
     baseUrl: trimSlash(env("OLLABRIDGE_BASE_URL")),
     ownerToken: env("OLLABRIDGE_TOKEN"),
     nodeId: env("OLLABRIDGE_NODE_ID"),
-    mcpOperation: env("OLLABRIDGE_MCP_OPERATION") ?? "mcp.tools_call",
+    mcpOperation: env("OLLABRIDGE_MCP_OPERATION") ?? "agentic.invoke",
     mcpServer: env("OLLABRIDGE_MCP_SERVER") ?? "smartmirror",
     pairingPath: env("OLLABRIDGE_PAIRING_PATH") ?? "/pair",
     pairingFlow: env("OLLABRIDGE_PAIRING_FLOW") === "code" ? ("code" as const) : ("device" as const),

@@ -4,8 +4,8 @@ import { TOOLS, findTool, type HealthReport } from "@/lib/tools";
 
 import { getConfig, pairingRequired, type ServerConfig } from "./config";
 import { demoAddItem, demoCreateTryOn, demoJob, demoSuggest, demoWardrobe } from "./demo";
-import { OllaBridgeClient, UpstreamError, unwrapToolResult } from "./ollabridge";
-import { SessionConfigError, readSession, type SessionData } from "./session";
+import { MIRROR_CAPABILITY, OllaBridgeClient, UpstreamError, unwrapToolResult } from "./ollabridge";
+import { SessionConfigError, readSession, writeSession, type SessionData } from "./session";
 
 /**
  * Backend-for-frontend dispatch. The browser calls one allow-listed tool at a
@@ -30,6 +30,13 @@ export function ollabridgeToken(config: ServerConfig, session: SessionData | nul
   if (session?.kind === "device" && session.deviceToken) return session.deviceToken;
   if (session?.kind === "owner" && config.ollabridge.ownerToken) return config.ollabridge.ownerToken;
   throw new BffError("Pair this screen to continue", 401, "pairing_required");
+}
+
+/** Remember the HomePilot node this screen uses, so later calls skip discovery. */
+async function rememberNode(session: SessionData | null, nodeId: string): Promise<void> {
+  if (!session || session.kind !== "device" || session.nodeId === nodeId) return;
+  const { v: _v, iat: _iat, exp: _exp, ...rest } = session;
+  await writeSession({ ...rest, nodeId }).catch(() => undefined);
 }
 
 export async function requireAccess(config: ServerConfig): Promise<SessionData | null> {
@@ -70,7 +77,8 @@ export async function callTool(tool: string, rawArgs: unknown): Promise<unknown>
       return callDirect(config, tool, scoped);
     case "ollabridge": {
       const client = new OllaBridgeClient(config.ollabridge.baseUrl!, ollabridgeToken(config, session));
-      const node = await client.resolveNode(session?.nodeId ?? config.ollabridge.nodeId);
+      const node = await client.resolveNode(session?.nodeId ?? config.ollabridge.nodeId, session?.deviceId);
+      await rememberNode(session, node.node_id);
       return client.callTool(config.ollabridge, node.node_id, tool, scoped);
     }
   }
@@ -139,9 +147,12 @@ export async function health(): Promise<HealthReport> {
   }
   const client = new OllaBridgeClient(config.ollabridge.baseUrl!, token, 5_000);
   try {
-    const nodes = await client.listNodes();
+    const nodes = (await client.listNodes()).filter((n) => n.node_id !== session?.deviceId);
     const preferred = session?.nodeId ?? config.ollabridge.nodeId;
-    const node = preferred ? nodes.find((n) => n.node_id === preferred) : nodes.find((n) => n.online !== false);
+    const node = preferred
+      ? nodes.find((n) => n.node_id === preferred)
+      : (nodes.find((n) => n.online !== false && n.capabilities?.includes(MIRROR_CAPABILITY)) ??
+        nodes.find((n) => n.online !== false));
     return {
       ...base,
       ollabridge: "ok",
@@ -158,7 +169,7 @@ export function toErrorResponse(err: unknown): Response {
     return Response.json({ error: err.message, code: err.code }, { status: err.status });
   }
   if (err instanceof UpstreamError) {
-    return Response.json({ error: err.message, code: "upstream" }, { status: err.status });
+    return Response.json({ error: err.message, code: err.code }, { status: err.status });
   }
   if (err instanceof SessionConfigError) {
     return Response.json({ error: err.message, code: "misconfigured" }, { status: 500 });

@@ -206,7 +206,11 @@ Each item lists what changes, the flag, the additive guarantee, the tests and th
   HomePilot's real `preview_persona_package` / `import_persona_package` (skipped without a
   HomePilot checkout; `HOMEPILOT_SRC`).
 
-#### W-1 · BFF `ollabridge` mode on Plane B (M1b)
+#### W-1 · BFF `ollabridge` mode on Plane B (M1b) — ✅ done
+> Also unwraps OllaBridge Cloud's relay envelope (`{type: "res", ok, data}`), reads HomePilot's
+> job `output`, skips the screen's own device when picking a node, and re-reads a job HomePilot
+> marked failed before recording the reason. Verified end-to-end with the real OllaBridge Local
+> relay, HomePilot node jobs and SmartMirror MCP (Context Forge shimmed).
 - Default `OLLABRIDGE_MCP_OPERATION=agentic.invoke`, params `{tool, arguments}` (HP-1 contract).
 - Node selection: the online devices from `/v1/mirror/nodes`; probe `…/manifest` and keep the one advertising
   `agentic.invoke`. Use OB-4's `capabilities` field when present. Cache the chosen `node_id` in the session.

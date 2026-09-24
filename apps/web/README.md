@@ -134,6 +134,24 @@ Screens pair the same way the 3D Avatar Chatbot does, with two flows on
 | `OLLABRIDGE_PAIRING_PATH` | `/pair` | code-entry endpoint |
 | `SMARTMIRROR_SESSION_SECRET` | required outside demo | ≥ 32 characters; seals both cookies |
 | `OLLABRIDGE_STYLIST_MODEL` | discover `persona:stylist--…` | force a HomePilot persona for the stylist |
+| `OLLABRIDGE_MCP_OPERATION` | `agentic.invoke` | HomePilot node job for tool calls (`mcp.tools_call` = legacy shape) |
+| `OLLABRIDGE_NODE_ID` | discovered | pin the HomePilot node |
+
+## Tool calls from anywhere
+
+`/api/tools/[tool]` runs SmartMirror's MCP tools on the owner's PC:
+
+```
+BFF → OllaBridge Cloud  POST /v1/mirror/nodes/{node}/jobs  {operation: "agentic.invoke", params: {tool, arguments}}
+    → OllaBridge Local  homepilot.mirror.job.create          (HOMEPILOT_MIRROR_RELAY_ENABLED)
+    → HomePilot         agentic.invoke, allow-listed         (HOMEPILOT_MIRROR_MCP_ENABLED, HOMEPILOT_MIRROR_ALLOWED_TOOLS)
+    → SmartMirror MCP   hp.smartmirror.*
+```
+
+The HomePilot node is the online device advertising `homepilot.mirror`
+(OllaBridge Cloud ≥ OB-4), else the one whose manifest offers `agentic.invoke`;
+it is remembered in the session. Errors say what to switch on
+(`tool_not_allowed`, `capability_unavailable`, `node_offline`).
 
 ## Stylist persona
 

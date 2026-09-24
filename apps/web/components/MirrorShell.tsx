@@ -139,7 +139,11 @@ function TopBar() {
             </span>
           )}
           {health?.backend === "demo" && <Badge>Demo data</Badge>}
-          <StatusPill tone={online ? "ok" : "off"}>{online ? "HomePilot online" : "HomePilot offline"}</StatusPill>
+          {health?.pairingRequired && !health.paired ? (
+            <StatusPill tone="warn">Not paired</StatusPill>
+          ) : (
+            <StatusPill tone={online ? "ok" : "off"}>{online ? "HomePilot online" : "HomePilot offline"}</StatusPill>
+          )}
         </div>
         <Clock />
       </div>
