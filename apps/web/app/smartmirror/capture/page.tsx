@@ -8,7 +8,8 @@ import {
   type CameraSourceKind,
   type CameraSourceOption,
 } from "@smartmirror/device-capabilities";
-import { Badge, Button, TileContent, type IconName } from "@smartmirror/ui";
+import { Badge, Button, Chip, TileContent, buttonClass, type IconName } from "@smartmirror/ui";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
@@ -16,7 +17,7 @@ import { Mirror } from "@/components/Mirror";
 import { QRCode } from "@/components/QRCode";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useToast } from "@/components/Toast";
-import { useCameraStream } from "@/components/useCameraStream";
+import { cameraErrorText, useCameraStream } from "@/components/useCameraStream";
 import { useDevice } from "@/lib/capabilities";
 import { listenForCompanionPhoto, newCompanionCode } from "@/lib/companion";
 import { clearCapture, saveCapture } from "@/lib/storage";
@@ -38,7 +39,7 @@ export default function CapturePage() {
 }
 
 function Capture() {
-  const { capabilities, runtime, hasNativeBridge, ready } = useDevice();
+  const { capabilities, runtime, hasNativeBridge, hasWebCamera, ready } = useDevice();
   const params = useSearchParams();
   const next = params.get("next");
   const router = useRouter();
@@ -46,8 +47,8 @@ function Capture() {
   const capture = useCapture();
 
   const sources = useMemo(
-    () => resolveCameraSources({ capabilities, runtime, hasNativeBridge }),
-    [capabilities, runtime, hasNativeBridge],
+    () => resolveCameraSources({ capabilities, runtime, hasNativeBridge, hasWebCamera }),
+    [capabilities, runtime, hasNativeBridge, hasWebCamera],
   );
   const [selected, setSelected] = useState<CameraSourceKind | null>(null);
   const [review, setReview] = useState<string | null>(null);
@@ -69,11 +70,16 @@ function Capture() {
         title="Take a photo"
         subtitle="A full-length photo lets your stylist show outfits on you. It stays on this screen for 24 hours."
         actions={
-          capture && (
-            <Button variant="danger" icon="trash" onClick={() => clearCapture()}>
-              Delete photo
-            </Button>
-          )
+          <>
+            <Link href="/smartmirror/camera-test" className={buttonClass({ variant: "ghost" })}>
+              Camera test
+            </Link>
+            {capture && (
+              <Button variant="danger" icon="trash" onClick={() => clearCapture()}>
+                Delete photo
+              </Button>
+            )}
+          </>
         }
       />
       <div className="capture">
@@ -100,7 +106,7 @@ function Capture() {
               </div>
             </>
           ) : active === "browser" ? (
-            <BrowserStage onCaptured={setReview} />
+            <BrowserStage onCaptured={setReview} onUsePhone={() => setSelected("companion")} />
           ) : active === "native" ? (
             <NativeStage onCaptured={setReview} />
           ) : active === "upload" ? (
@@ -142,8 +148,9 @@ function SourceCard({ source, active, first, onSelect }: { source: CameraSourceO
   );
 }
 
-function BrowserStage({ onCaptured }: { onCaptured: (dataUrl: string) => void }) {
-  const { videoRef, state } = useCameraStream(true);
+function BrowserStage({ onCaptured, onUsePhone }: { onCaptured: (dataUrl: string) => void; onUsePhone: () => void }) {
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const { videoRef, setVideo, state, error, track, devices, retry } = useCameraStream(true, deviceId);
   const [count, setCount] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
 
@@ -162,20 +169,24 @@ function BrowserStage({ onCaptured }: { onCaptured: (dataUrl: string) => void })
     return () => window.clearTimeout(id);
   }, [count, state, videoRef, onCaptured]);
 
+  const failed = state === "denied" || state === "unavailable";
+
   return (
     <>
       <div className="stage__view">
         <Mirror label="Live camera preview">
-          <video ref={videoRef} muted playsInline autoPlay />
+          <video ref={setVideo} muted playsInline autoPlay />
           {state !== "live" && (
             <div className="empty" style={{ position: "absolute", inset: 0, border: 0 }}>
-              <p>
-                {state === "starting"
-                  ? "Waiting for camera permission…"
-                  : state === "denied"
-                    ? "Camera permission was denied. Use your phone instead."
-                    : "No camera found. Use your phone instead."}
-              </p>
+              <p>{cameraErrorText(state, error)}</p>
+            </div>
+          )}
+          {state === "live" && track && (
+            <div className="portrait__caption">
+              <Badge tone="accent">
+                Live · {track.width}×{track.height}
+                {track.frameRate ? ` · ${Math.round(track.frameRate)} fps` : ""}
+              </Badge>
             </div>
           )}
           {count !== null && count > 0 && (
@@ -187,9 +198,26 @@ function BrowserStage({ onCaptured }: { onCaptured: (dataUrl: string) => void })
         </Mirror>
       </div>
       <div className="stage__controls">
-        <Button variant="primary" size="lg" icon="camera" disabled={state !== "live" || count !== null} onClick={() => setCount(3)}>
-          Capture in 3 s
-        </Button>
+        {failed ? (
+          <>
+            <Button variant="primary" size="lg" icon="phone" onClick={onUsePhone} data-autofocus>
+              Use my phone
+            </Button>
+            <Button size="lg" icon="refresh" onClick={retry}>
+              Retry camera
+            </Button>
+          </>
+        ) : (
+          <Button variant="primary" size="lg" icon="camera" disabled={state !== "live" || count !== null} onClick={() => setCount(3)} data-autofocus>
+            Capture in 3 s
+          </Button>
+        )}
+        {devices.length > 1 &&
+          devices.map((d) => (
+            <Chip key={d.deviceId} pressed={(deviceId ?? track?.deviceId) === d.deviceId} onClick={() => setDeviceId(d.deviceId)}>
+              {d.label}
+            </Chip>
+          ))}
       </div>
       <p className="stage__note">Step back until your whole body fits inside the arch. Neutral, fitted clothing works best.</p>
     </>

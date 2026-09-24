@@ -31,12 +31,13 @@ function Chrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const capture = useCapture();
 
-  // The home already has a full-size mirror, capture owns its camera stage,
+  // The home already has a full-size mirror, capture and camera-test own their camera stage,
   // try-on renders the body photo itself, and pairing intentionally stays clean.
   const showPersistentCapture =
     Boolean(capture) &&
     pathname !== "/smartmirror" &&
     !pathname.startsWith("/smartmirror/capture") &&
+    !pathname.startsWith("/smartmirror/camera-test") &&
     !pathname.startsWith("/smartmirror/tryon") &&
     !pathname.startsWith("/smartmirror/pairing");
 

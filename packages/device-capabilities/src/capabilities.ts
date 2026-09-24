@@ -95,6 +95,22 @@ export const DEVICE_PROFILES = {
       homepilotOnline: true,
     },
   },
+  "echo-show-21-alexa": {
+    id: "echo-show-21-alexa",
+    name: "Echo Show 21 · Alexa skill",
+    description: "Launched by the Alexa skill via Alexa.Presentation.HTML: touch and voice, camera only if the web camera is allowed.",
+    viewport: { width: 1920, height: 1080 },
+    runtime: "alexa-html",
+    capabilities: {
+      touch: true,
+      camera: false,
+      microphone: false,
+      alexa: true,
+      dpad: false,
+      ollabridgeOnline: true,
+      homepilotOnline: true,
+    },
+  },
   browser: {
     id: "browser",
     name: "Browser development",
@@ -144,12 +160,13 @@ export function decodeCapabilities(value: string | null | undefined): Partial<De
 export function detectBrowserCapabilities(win: Window = window): DeviceCapabilities {
   const nav = win.navigator;
   const hasMediaDevices = Boolean(nav.mediaDevices && typeof nav.mediaDevices.getUserMedia === "function");
+  const legacy = Boolean((nav as Navigator & { webkitGetUserMedia?: unknown; getUserMedia?: unknown }).webkitGetUserMedia ?? (nav as Navigator & { getUserMedia?: unknown }).getUserMedia);
   const coarse = typeof win.matchMedia === "function" && win.matchMedia("(any-pointer: coarse)").matches;
   const fine = typeof win.matchMedia === "function" && win.matchMedia("(any-pointer: fine)").matches;
   const speech = "SpeechRecognition" in win || "webkitSpeechRecognition" in win;
   return {
     touch: coarse || fine || nav.maxTouchPoints > 0,
-    camera: hasMediaDevices && win.isSecureContext,
+    camera: (hasMediaDevices || legacy) && win.isSecureContext,
     microphone: hasMediaDevices && win.isSecureContext && speech,
     alexa: false,
     dpad: false,

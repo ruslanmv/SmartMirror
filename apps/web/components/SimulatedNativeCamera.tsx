@@ -15,7 +15,7 @@ import { useCameraStream } from "./useCameraStream";
  */
 export function SimulatedNativeCamera() {
   const [requestId, setRequestId] = useState<string | null>(null);
-  const { videoRef, state } = useCameraStream(requestId !== null);
+  const { videoRef, setVideo, state } = useCameraStream(requestId !== null);
 
   useEffect(() => {
     const onRequest = (e: Event) => setRequestId((e as CustomEvent<{ requestId: string }>).detail.requestId);
@@ -40,7 +40,7 @@ export function SimulatedNativeCamera() {
       <div className="sm-panel native-camera">
         <Badge tone="warn">Simulated CameraX</Badge>
         <div className="portrait">
-          <video ref={videoRef} muted playsInline hidden={state !== "live"} />
+          <video ref={setVideo} muted playsInline hidden={state !== "live"} />
           {state !== "live" && (
             <div className="empty" style={{ position: "absolute", inset: 0, border: 0 }}>
               <p>{state === "starting" ? "Opening camera…" : "No webcam — a synthetic test photo will be used."}</p>

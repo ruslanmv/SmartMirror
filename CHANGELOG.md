@@ -16,6 +16,11 @@ All notable changes to SmartMirror will be documented here.
   with an APL fallback.
 - MCP tools `hp.smartmirror.wardrobe_add` and `hp.smartmirror.job_get`.
 - Web CI workflow.
+- Backwards-compatible camera layer: modern and legacy `getUserMedia`, constraint
+  fallback, camera probing; web camera usable in the browser, the Echo WebView and
+  Alexa HTML sessions, with native and phone fallbacks.
+- Live mirror on the home screen, `/smartmirror/camera-test` diagnostics page and an
+  `echo-show-21-alexa` simulator profile for real-time camera testing on Vercel.
 
 ### Changed
 - The Echo Show app is now a thin WebView shell with a native capture bridge.

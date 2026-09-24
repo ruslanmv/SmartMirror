@@ -1,12 +1,13 @@
 "use client";
 
-import { Chip, TileContent, Badge } from "@smartmirror/ui";
+import { Badge, Button, Chip, TileContent } from "@smartmirror/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { partOfDay, useNow } from "@/components/Clock";
 import { Mirror } from "@/components/Mirror";
+import { useCameraStream } from "@/components/useCameraStream";
 import { api } from "@/lib/api";
 import { useDevice } from "@/lib/capabilities";
 import { timeAgo, useCapture, useLooks } from "@/lib/use-local";
@@ -25,8 +26,30 @@ export default function HomePage() {
   const { greeting, when } = partOfDay(now);
   const capture = useCapture();
   const looks = useLooks();
-  const { capabilities, runtime, hasNativeBridge } = useDevice();
+  const { capabilities, runtime, hasNativeBridge, hasWebCamera } = useDevice();
   const [pieces, setPieces] = useState<number | null>(null);
+
+  // Live mirror: the real-time camera in the arch. Opt-in (it prompts for
+  // permission) and remembered per screen.
+  const liveAvailable = capabilities.camera && hasWebCamera;
+  const [liveMirror, setLiveMirror] = useState(false);
+  useEffect(() => {
+    try {
+      setLiveMirror(localStorage.getItem("sm:liveMirror") === "1");
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  const toggleLive = () => {
+    const next = !liveMirror;
+    setLiveMirror(next);
+    try {
+      localStorage.setItem("sm:liveMirror", next ? "1" : "0");
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  const live = useCameraStream(liveMirror && liveAvailable);
 
   useEffect(() => {
     api
@@ -41,13 +64,33 @@ export default function HomePage() {
     <div className="home">
       <section className="home__mirror" aria-label="Your mirror">
         <div className="portrait-wrap">
-          <Mirror
-            imageUrl={capture?.dataUrl}
-            label={capture ? "Your latest photo" : "Empty mirror"}
-            caption={
-              capture ? <Badge tone="accent">Latest photo · {timeAgo(capture.takenAt)}</Badge> : <Badge>No photo yet</Badge>
-            }
-          />
+          {liveMirror && liveAvailable ? (
+            <Mirror
+              label="Live mirror"
+              caption={
+                live.state === "live" ? (
+                  <Badge tone="accent">Live mirror</Badge>
+                ) : (
+                  <Badge>{live.state === "starting" ? "Starting camera…" : "Camera unavailable"}</Badge>
+                )
+              }
+            >
+              <video ref={live.setVideo} muted playsInline autoPlay />
+            </Mirror>
+          ) : (
+            <Mirror
+              imageUrl={capture?.dataUrl}
+              label={capture ? "Your latest photo" : "Empty mirror"}
+              caption={
+                capture ? <Badge tone="accent">Latest photo · {timeAgo(capture.takenAt)}</Badge> : <Badge>No photo yet</Badge>
+              }
+            />
+          )}
+          {liveAvailable && (
+            <Button size="sm" variant={liveMirror ? "primary" : "default"} icon="camera" onClick={toggleLive}>
+              {liveMirror ? "Live mirror on" : "Live mirror"}
+            </Button>
+          )}
         </div>
       </section>
 

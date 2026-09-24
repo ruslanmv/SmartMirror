@@ -10,7 +10,9 @@ Vercel. The same pages run in a browser, inside the Echo Show shell
 | `/smartmirror` | The product UI (home, `stylist`, `wardrobe`, `capture`, `tryon`, `looks`, `pairing`) |
 | `/simulator/echo-show-21` | 1920×1080 Echo Show 21 simulation: D-pad only, no camera/mic |
 | `/simulator/echo-show-21-experimental` | Same screen with touch, native camera and microphone |
+| `/simulator/echo-show-21-alexa` | The UI as launched by the Alexa skill (Alexa HTML runtime) |
 | `/simulator/browser` | Responsive desktop/laptop/tablet/phone frames |
+| `/smartmirror/camera-test` | Live camera diagnostics for the current device |
 | `/alexa` | Entry URL for `Alexa.Presentation.HTML.Start` |
 | `/companion/[code]` | Phone-side capture page opened from the mirror's QR code |
 | `/api/*` | BFF: health, session/pairing, allow-listed MCP tools, media relay |
@@ -43,6 +45,32 @@ developer panel:
 
 Echo profiles emulate the shell's `window.SmartMirrorNative` bridge, so the
 native-camera path runs the same JavaScript as on the Echo.
+
+## Cameras
+
+Capture uses one backwards-compatible camera layer
+(`packages/device-capabilities/src/camera-stream.ts`), tried in this order:
+
+| Where | 1st | 2nd | Fallbacks |
+|---|---|---|---|
+| Laptop / phone browser | `getUserMedia` (modern, or legacy `webkitGetUserMedia`) | — | phone QR, upload |
+| Echo Show shell | native bridge (`SmartMirrorNative.requestCapture`) | WebView `getUserMedia` (granted by the shell for the app origin only) | phone QR |
+| Alexa HTML session | `getUserMedia` if the device allows it | — | phone QR |
+
+HD and front-camera constraints are relaxed step by step if a camera rejects
+them; permission errors fall straight through to the phone option. Devices
+with no video input are detected without prompting and start on the phone option.
+
+Real-time testing on a Vercel preview (HTTPS is required for cameras):
+
+- **`/smartmirror/camera-test`** — live preview with resolution/fps, camera
+  picker, test photo, native-bridge test, and a diagnostics table (runtime,
+  HTTPS, camera API, permission, video inputs). Open it on the laptop, on the
+  Echo shell, or in the Alexa session to see what that device really exposes.
+- **Live mirror** on the home screen streams the camera into the arch.
+- In the simulator, Echo and Alexa profiles use the laptop webcam for the
+  simulated device camera; toggle **Camera** off to test the phone fallback.
+  The `echo-show-21-alexa` profile simulates the Alexa HTML runtime.
 
 ## Backends
 

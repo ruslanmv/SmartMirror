@@ -5,7 +5,9 @@ import {
   decodeCapabilities,
   detectBrowserCapabilities,
   getDeviceProfile,
+  hasWebCamera as detectWebCamera,
   mergeCapabilities,
+  probeCamera,
   parseSimulatorMessage,
   readNativeCapabilities,
   type DeviceCapabilities,
@@ -27,6 +29,8 @@ export interface DeviceContextValue {
   simulated: boolean;
   profileId: string | null;
   hasNativeBridge: boolean;
+  /** getUserMedia (modern or legacy) usable here: browser, Echo WebView or Alexa HTML. */
+  hasWebCamera: boolean;
   health: HealthReport | null;
   refreshHealth: () => void;
   /** Notify the simulator parent window, if any. */
@@ -62,8 +66,12 @@ function detect(forceRuntime?: Runtime): Detected {
     };
   }
   if (window.SmartMirrorNative) {
+    const native = readNativeCapabilities();
+    // The WebView camera is a second path when the native intent is missing;
+    // probeCameraHardware() below drops it again if no camera is present.
+    const camera = Boolean(native?.camera) || detectWebCamera();
     return {
-      capabilities: mergeCapabilities(DEVICE_PROFILES["echo-show-21"].capabilities, readNativeCapabilities()),
+      capabilities: mergeCapabilities(DEVICE_PROFILES["echo-show-21"].capabilities, native, { camera }),
       runtime: "echo-shell",
       simulated: false,
       profileId: null,
@@ -71,9 +79,11 @@ function detect(forceRuntime?: Runtime): Detected {
   }
   const browser = detectBrowserCapabilities();
   if (forceRuntime === "alexa-html" || isAlexaActive() || url.searchParams.get("runtime") === "alexa-html") {
-    // Alexa owns voice; the web app never opens the mic or camera itself there.
+    // Alexa owns voice, so the mic stays off. The camera is only offered if the
+    // HTML runtime exposes getUserMedia; if the device blocks it, the capture
+    // screen falls back to the companion phone.
     return {
-      capabilities: { ...browser, alexa: true, camera: false, microphone: false },
+      capabilities: { ...browser, alexa: true, camera: detectWebCamera(), microphone: false },
       runtime: "alexa-html",
       simulated: false,
       profileId: null,
@@ -97,6 +107,7 @@ export function DeviceProvider({ children, runtime: forceRuntime }: { children: 
   });
   const [health, setHealth] = useState<HealthReport | null>(null);
   const [hasNativeBridge, setHasNativeBridge] = useState(false);
+  const [hasWebCamera, setHasWebCamera] = useState(false);
   const capsRef = useRef(state.capabilities);
   capsRef.current = state.capabilities;
 
@@ -111,7 +122,19 @@ export function DeviceProvider({ children, runtime: forceRuntime }: { children: 
       installSimulatedNativeBridge(() => capsRef.current);
     }
     setHasNativeBridge(Boolean(window.SmartMirrorNative));
+    setHasWebCamera(detectWebCamera());
     setState({ ...detected, ready: true });
+
+    // Real devices: drop the camera flag when no video input exists at all.
+    // (The simulator's toggles are authoritative, so it is not probed.)
+    if (!detected.simulated && detected.capabilities.camera) {
+      void probeCamera().then((probe) => {
+        const nativeCamera = Boolean(readNativeCapabilities()?.camera);
+        if (probe.api !== "none" && probe.devices.length === 0 && !nativeCamera && typeof navigator.mediaDevices?.enumerateDevices === "function") {
+          setState((s) => ({ ...s, capabilities: { ...s.capabilities, camera: false } }));
+        }
+      });
+    }
   }, [forceRuntime]);
 
   // Simulator control channel.
@@ -177,11 +200,12 @@ export function DeviceProvider({ children, runtime: forceRuntime }: { children: 
       simulated: state.simulated,
       profileId: state.profileId,
       hasNativeBridge,
+      hasWebCamera,
       health,
       refreshHealth,
       postToSimulator,
     }),
-    [state.ready, capabilities, state.runtime, state.simulated, state.profileId, hasNativeBridge, health, refreshHealth, postToSimulator],
+    [state.ready, capabilities, state.runtime, state.simulated, state.profileId, hasNativeBridge, hasWebCamera, health, refreshHealth, postToSimulator],
   );
 
   return <DeviceContext.Provider value={value}>{children}</DeviceContext.Provider>;

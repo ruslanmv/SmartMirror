@@ -22,10 +22,22 @@ export interface CameraEnvironment {
   runtime: Runtime;
   /** `window.SmartMirrorNative` exists (real shell or simulator emulation). */
   hasNativeBridge: boolean;
+  /**
+   * getUserMedia (modern or legacy) is available in a secure context. Defaults
+   * to true for callers that predate the web-camera fallback.
+   */
+  hasWebCamera?: boolean;
 }
 
+const WEB_CAMERA_COPY: Record<Runtime, { label: string; description: string }> = {
+  browser: { label: "This device's camera", description: "Live mirror preview with a countdown, straight from the browser." },
+  simulator: { label: "This device's camera", description: "Live mirror preview with a countdown, straight from the browser." },
+  "echo-shell": { label: "Echo camera · web", description: "The Echo camera through the app's WebView, with a live mirror preview." },
+  "alexa-html": { label: "Screen camera", description: "Try the device camera from the Alexa web app. Falls back to your phone if blocked." },
+};
+
 export function resolveCameraSources(env: CameraEnvironment): CameraSourceOption[] {
-  const { capabilities: caps, runtime, hasNativeBridge } = env;
+  const { capabilities: caps, runtime, hasNativeBridge, hasWebCamera = true } = env;
   const isEcho = runtime === "echo-shell";
 
   const native: CameraSourceOption = {
@@ -37,12 +49,17 @@ export function resolveCameraSources(env: CameraEnvironment): CameraSourceOption
     reason: !isEcho || !hasNativeBridge ? "Only inside the Echo Show shell" : !caps.camera ? "Camera not exposed on this device" : undefined,
   };
 
+  // One live camera path for every runtime: browser getUserMedia, the Echo
+  // shell's WebView, or an Alexa HTML session. Native capture stays preferred
+  // on Echo because it does not depend on WebView camera support.
+  const copy = WEB_CAMERA_COPY[runtime];
   const browser: CameraSourceOption = {
     kind: "browser",
-    label: "This device's camera",
-    description: "Use the browser camera with a live mirror preview and countdown.",
-    available: !isEcho && runtime !== "alexa-html" && caps.camera,
-    reason: isEcho || runtime === "alexa-html" ? "Browser camera is not used on Echo" : !caps.camera ? "No camera permission or hardware" : undefined,
+    label: copy.label,
+    description: copy.description,
+    experimental: runtime === "echo-shell" || runtime === "alexa-html",
+    available: hasWebCamera && caps.camera,
+    reason: !hasWebCamera ? "No camera API here (needs HTTPS and getUserMedia)" : !caps.camera ? "Camera not available on this device" : undefined,
   };
 
   const companion: CameraSourceOption = {
@@ -61,7 +78,7 @@ export function resolveCameraSources(env: CameraEnvironment): CameraSourceOption
   };
 
   // Order: best available first, unavailable last.
-  const all = isEcho ? [native, companion, browser, upload] : [browser, companion, upload, native];
+  const all = isEcho ? [native, browser, companion, upload] : [browser, companion, upload, native];
   return [...all.filter((s) => s.available), ...all.filter((s) => !s.available)];
 }
 
