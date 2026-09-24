@@ -3,11 +3,11 @@
 import { Badge, Button, Chip, Icon, TileContent } from "@smartmirror/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { partOfDay, useNow } from "@/components/Clock";
 import { Mirror } from "@/components/Mirror";
-import { SnapMirror } from "@/components/SnapMirror";
+import { FrozenPhoto, SnapMirror } from "@/components/SnapMirror";
 import { useCameraStream } from "@/components/useCameraStream";
 import { useSettings } from "@/lib/settings";
 import { api } from "@/lib/api";
@@ -37,7 +37,38 @@ export default function HomePage() {
   const liveAvailable = capabilities.camera && hasWebCamera;
   const liveMirror = settings.liveMirror;
   const toggleLive = () => update({ liveMirror: !liveMirror });
-  const live = useCameraStream(settingsReady && liveMirror && liveAvailable);
+  // After a snap the photo stays frozen in the arch and the camera turns off,
+  // until the user picks Retake or Live mirror. Remembered for this session only,
+  // so a fresh start is still a live mirror.
+  const [frozen, setFrozenState] = useState(false);
+  const [justTaken, setJustTaken] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      setFrozenState(sessionStorage.getItem("sm:frozen") === "1");
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  const setFrozen = useCallback((value: boolean) => {
+    setFrozenState(value);
+    if (!value) setJustTaken(null);
+    try {
+      if (value) sessionStorage.setItem("sm:frozen", "1");
+      else sessionStorage.removeItem("sm:frozen");
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  const frozenUrl = frozen ? (justTaken ?? capture?.dataUrl ?? null) : null;
+  const onCaptured = useCallback(
+    (url: string) => {
+      setJustTaken(url);
+      setFrozen(true);
+    },
+    [setFrozen],
+  );
+
+  const live = useCameraStream(settingsReady && liveMirror && liveAvailable && !frozenUrl);
   const liveFailed = live.state === "denied" || live.state === "unavailable";
 
   // "?snap=1" (Alexa "take my photo", deep links): count down on the live
@@ -47,8 +78,9 @@ export default function HomePage() {
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("snap") !== "1") return;
     router.replace("/smartmirror");
+    setFrozen(false);
     setAutoSnap(true);
-  }, [router]);
+  }, [router, setFrozen]);
   useEffect(() => {
     if (!autoSnap || !settingsReady || !deviceReady) return;
     if (!liveMirror || !liveAvailable || liveFailed) {
@@ -70,8 +102,22 @@ export default function HomePage() {
     <div className="home">
       <section className="home__mirror" aria-label="Your mirror">
         <div className="portrait-wrap">
-          {liveMirror && liveAvailable && !liveFailed ? (
+          {frozenUrl ? (
+            <FrozenPhoto
+              url={frozenUrl}
+              onRetake={() => {
+                setFrozen(false);
+                if (!liveMirror) update({ liveMirror: true });
+                setAutoSnap(true);
+              }}
+              onLive={() => {
+                setFrozen(false);
+                if (!liveMirror) update({ liveMirror: true });
+              }}
+            />
+          ) : liveMirror && liveAvailable && !liveFailed ? (
             <SnapMirror
+              onCaptured={onCaptured}
               videoRef={live.videoRef}
               setVideo={live.setVideo}
               streaming={live.state === "live"}

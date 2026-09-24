@@ -20,8 +20,8 @@ mirror first, a camera second, and an app third.
 |---|---|---|
 | **Ambient** | Fill screen: real mirror, or your portrait as a framed painting | Any key, tap or movement |
 | **Engage** | Home with the live mirror in the arch; one primary action (Snap) | Walk away (idle → ambient) |
-| **Capture** | 3·2·1 with beeps, flash, frozen photo | Tap / Back cancels the countdown |
-| **Customise** | "What next?" — Style me · Try it on · Make it art · Retake · Done | Done, Back, or 20 s idle → live |
+| **Capture** | 3·2·1 with beeps, flash; the camera switches off | Tap / Back cancels the countdown |
+| **Customise** | The photo stays frozen in the arch: Style me · Try it on · Make it art | Retake, or Live mirror to go live again |
 | **Keep** | Photo stays on this screen for 24 h; saved looks until deleted | Settings / Delete photo |
 
 ## 2. Interaction rules (industry practice applied)
@@ -39,9 +39,10 @@ TV), and platform privacy patterns (camera indicators on iOS/Android/macOS).
    Secondary options are visible but visually quieter (ghost buttons).
 4. **Undo over confirm.** The photo is saved immediately; *Retake* replaces it.
    No "Are you sure?" dialogs.
-5. **Every state times out safely.** Review returns to the live mirror after
-   20 s; the home screen can fall back to the ambient portrait after an idle
-   period (Settings → Start automatically).
+5. **The picture you took stays put.** After the shutter the camera turns off and
+   the photo remains frozen in the arch, like a print from a photo booth, until
+   you choose Retake or Live mirror (remembered for the session). The home screen
+   can still fall back to the ambient portrait after an idle period.
 6. **Always visible privacy state.** A red "Camera on" pill appears whenever the
    camera streams. Photos stay on the screen (24 h) or on your HomePilot; the
    cloud only relays.
@@ -64,13 +65,13 @@ Home (live mirror)
 3 · 2 · 1  (beep each second; tap/Back = cancel)
   │
   ▼
-flash → photo frozen in the arch → saved on this screen
+flash → camera off → photo frozen in the arch → saved on this screen
   │
   ├─ Style me     → Stylist ("Your new photo is ready") → pick a look → Try it on
   ├─ Try it on    → Try-on with the latest outfit suggestion and this photo
   ├─ Make it art  → Fill screen as a painting of this photo
-  ├─ Retake       → 3 · 2 · 1 again
-  └─ Done / 20 s  → back to the live mirror
+  ├─ Retake       → camera on, 3 · 2 · 1 again
+  └─ Live mirror  → camera on, back to the live mirror
 ```
 
 ## 4. Next improvements (not yet built)
