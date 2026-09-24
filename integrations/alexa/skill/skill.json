@@ -1,0 +1,27 @@
+{
+  "manifest": {
+    "publishingInformation": {
+      "locales": {
+        "en-US": {
+          "name": "Smart Mirror",
+          "summary": "AI stylist and virtual try-on from your own wardrobe.",
+          "description": "Smart Mirror suggests outfits from your real wardrobe and shows them on you. Your photos stay on your HomePilot at home.",
+          "examplePhrases": ["Alexa, open smart mirror", "Alexa, ask smart mirror what I should wear to dinner"]
+        }
+      },
+      "isAvailableWorldwide": false,
+      "distributionCountries": ["US"],
+      "category": "LIFESTYLE"
+    },
+    "apis": {
+      "custom": {
+        "endpoint": { "uri": "arn:aws:lambda:REGION:ACCOUNT:function:smartmirror-alexa" },
+        "interfaces": [
+          { "type": "ALEXA_PRESENTATION_HTML" },
+          { "type": "ALEXA_PRESENTATION_APL" }
+        ]
+      }
+    },
+    "manifestVersion": "1.0"
+  }
+}

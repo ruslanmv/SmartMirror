@@ -33,6 +33,32 @@ Echo Show / Companion
         +-- virtual try-on providers
 ```
 
+## Web-first UI
+
+The product UI is a Next.js app in `apps/web`, deployed to Vercel. The same
+pages run in three places:
+
+```text
+                  SmartMirror UI (apps/web, Next.js on Vercel)
+                                  │
+         ┌────────────────────────┼─────────────────────────┐
+         ▼                        ▼                         ▼
+   Laptop browser        Echo Show 21 shell         Alexa skill
+   /smartmirror          WebView + native bridge    Alexa.Presentation.HTML
+                         (apps/echo-show)           (integrations/alexa)
+```
+
+Every deployment also serves an Echo Show 21 simulator at
+`/simulator/echo-show-21`, with live toggles for touch, camera, microphone,
+Alexa, D-pad and OllaBridge/HomePilot connectivity. Vercel hosts only the UI
+and a thin BFF; wardrobe data, photos and AI jobs stay on your HomePilot. See
+`apps/web/README.md` and `docs/adr/0004-web-first-ui.md`.
+
+```bash
+pnpm install
+pnpm dev        # http://localhost:3000/simulator/echo-show-21
+```
+
 ## Repository status
 
 This repository is an implementation scaffold, not a finished production release. The current code provides the integration contracts and a working development API so HomePilot/OllaBridge integration can be exercised before the advanced ML pipelines are added.
@@ -77,11 +103,15 @@ POST /v1/agentic/register/gateway
 
 and registers SmartMirror as an HTTP MCP gateway with tool auto-discovery.
 
-## Initial MCP tools
+## MCP tools
 
 - `hp.smartmirror.wardrobe_list`
+- `hp.smartmirror.wardrobe_add`
 - `hp.smartmirror.style_suggest`
 - `hp.smartmirror.tryon_create`
+- `hp.smartmirror.job_get`
+
+The web BFF allow-lists exactly the tools in `packages/contracts/smartmirror-mcp-tools.json`.
 
 The naming follows HomePilot's `hp.` MCP namespace convention.
 
@@ -111,7 +141,8 @@ The Echo/companion client should pair with OllaBridge and hold an OllaBridge dev
 
 ## Echo Show architecture
 
-The native client lives in `apps/echo-show`.
+The Echo client in `apps/echo-show` is a thin WebView shell around the web UI.
+It bridges native capture and a capability report through `window.SmartMirrorNative`.
 
 The camera layer is intentionally abstract:
 
@@ -136,11 +167,19 @@ pip install -e ".[dev]"
 pytest
 ```
 
+Web UI:
+
+```bash
+pnpm install
+pnpm -r typecheck && pnpm -r test
+pnpm dev
+```
+
 Echo client:
 
 ```bash
 cd apps/echo-show
-gradle :app:assembleDebug
+gradle :app:assembleDebug -PsmartmirrorWebUrl=https://smart-mirror.vercel.app
 ```
 
 ## Documentation
@@ -151,6 +190,8 @@ gradle :app:assembleDebug
 - `docs/privacy/data-handling.md`
 - `docs/device-testing/echo-show-21.md`
 - `docs/adr/`
+- `apps/web/README.md`
+- `integrations/alexa/README.md`
 
 ## Integration work still required in HomePilot
 

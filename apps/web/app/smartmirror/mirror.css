@@ -422,7 +422,8 @@ html[data-dpad="true"] .sm-chip:focus-visible { transform: scale(1.06); }
 
 @media (max-width: 560px) {
   .home__tiles { grid-template-columns: 1fr; }
-  .mirror-top__status .sm-badge { display: none; }
+  .mirror-top__status { display: none; }
+  .mirror-app { overflow-x: hidden; }
   .mirror-top .sm-wordmark { letter-spacing: 0.22em; white-space: nowrap; font-size: 0.85rem; }
   .mirror-top__right { gap: 1rem; }
   .clock__date { display: none; }

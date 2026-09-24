@@ -1,0 +1,28 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "smart mirror",
+      "intents": [
+        { "name": "AMAZON.CancelIntent", "samples": [] },
+        { "name": "AMAZON.HelpIntent", "samples": [] },
+        { "name": "AMAZON.StopIntent", "samples": [] },
+        { "name": "AMAZON.NavigateHomeIntent", "samples": [] },
+        {
+          "name": "StyleIntent",
+          "slots": [{ "name": "occasion", "type": "AMAZON.SearchQuery" }],
+          "samples": [
+            "what should I wear to {occasion}",
+            "what to wear for {occasion}",
+            "find me an outfit for {occasion}",
+            "style me for {occasion}",
+            "I need an outfit for {occasion}"
+          ]
+        },
+        { "name": "WardrobeIntent", "slots": [], "samples": ["show my wardrobe", "open my wardrobe", "show my clothes"] },
+        { "name": "PhotoIntent", "slots": [], "samples": ["take my photo", "take a picture", "take a full length photo"] },
+        { "name": "TryOnIntent", "slots": [], "samples": ["try it on", "try this on", "show it on me"] }
+      ],
+      "types": []
+    }
+  }
+}
