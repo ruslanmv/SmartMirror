@@ -9,7 +9,8 @@
     "dev": "pnpm --filter @smartmirror/web dev",
     "build": "pnpm --filter @smartmirror/web build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "persona:build": "python3 integrations/homepilot/personas/build.py"
   },
   "devDependencies": {
     "next": "^16.3.0"

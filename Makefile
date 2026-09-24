@@ -1,4 +1,4 @@
-.PHONY: dev test lint up down register-homepilot
+.PHONY: dev test lint up down register-homepilot persona
 
 dev:
 	uvicorn services.api.app.main:app --reload --host 0.0.0.0 --port 8100
@@ -18,3 +18,6 @@ down:
 
 register-homepilot:
 	python scripts/register_homepilot.py
+
+persona:
+	python integrations/homepilot/personas/build.py

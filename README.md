@@ -103,6 +103,13 @@ POST /v1/agentic/register/gateway
 
 and registers SmartMirror as an HTTP MCP gateway with tool auto-discovery.
 
+### Stylist persona
+
+The mirror's stylist is a HomePilot persona that you import and publish on your
+own HomePilot: [`integrations/homepilot/personas/stylist.hpersona`](integrations/homepilot/personas/stylist.hpersona).
+See [the persona README](integrations/homepilot/personas/README.md) for the
+three steps (import, publish with alias `stylist`, check `/v1/models`).
+
 ## MCP tools
 
 - `hp.smartmirror.wardrobe_list`

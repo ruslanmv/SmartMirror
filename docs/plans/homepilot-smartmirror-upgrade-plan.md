@@ -181,17 +181,22 @@ Each item lists what changes, the flag, the additive guarantee, the tests and th
 - Reply shown on screen and spoken through `useSpeech`; Alexa `StyleIntent` uses the same route.
 - Demo mode keeps the current deterministic stylist.
 
-#### P-1 · Stylist persona template (M1a)
-- New folder `integrations/homepilot/personas/stylist/`, containing:
-  - `persona_agent.json`: name "Stylist", alias `stylist`;
-  - the voice and tone for a speakable 10-foot answer (≤ 3 short sentences);
-  - rules: "only recommend items you are given; say when the wardrobe lacks something";
-  - `tools.json` / `mcp_servers.json`: declares the optional `smartmirror` MCP server
-    (HomePilot's dependency checker shows it as "optional, not installed" until M1b);
-  - `card.json` and `manifest.json` (v2 format).
-- `pnpm persona:build` zips it to `dist/stylist.hpersona`; the docs explain importing it via HomePilot → Personas → Import
-  (`POST /persona/import`, preview first).
-- **Tests:** a schema test for the files; a round-trip test against HomePilot `preview_persona_package` in the integration job.
+#### P-1 · Stylist persona template (M1a) — ✅ done
+- Source `integrations/homepilot/personas/stylist/` in the `.hpersona` v2 layout:
+  - `manifest.json`;
+  - `blueprint/persona_agent.json`: label "Stylist", ≤ 3 short speakable sentences,
+    the "Owned items" grounding rule, no body comments;
+  - `blueprint/persona_appearance.json` and `preview/card.json`.
+- Built package committed as `integrations/homepilot/personas/stylist.hpersona`
+  (`make persona` / `pnpm persona:build`; deterministic, so CI checks it is not stale).
+- **Found while building:**
+  - an imported persona is **not published**; the owner switches on **Publish as API Model**
+    with alias `stylist` (`POST /projects/{id}/shared-api`), otherwise it is invisible in `/v1/models`;
+  - HomePilot **pins declared tools on import**, so the template declares **no tools** until M1b
+    (a later template version adds the SmartMirror MCP server).
+- **Tests:** `tests/contracts/test_stylist_persona.py`, including a round-trip through
+  HomePilot's real `preview_persona_package` / `import_persona_package` (skipped without a
+  HomePilot checkout; `HOMEPILOT_SRC`).
 
 #### W-1 · BFF `ollabridge` mode on Plane B (M1b)
 - Default `OLLABRIDGE_MCP_OPERATION=agentic.invoke`, params `{tool, arguments}` (HP-1 contract).
@@ -444,7 +449,7 @@ NODE_RESTARTED
 | Step | Action | Rollback |
 |---|---|---|
 | 1 | Merge OB-1/OB-2/OB-3 (inert until used) | revert PR; no data impact |
-| 2 | Import `stylist.hpersona` into HomePilot; set SmartMirror `SMARTMIRROR_BACKEND=ollabridge` on a Vercel **preview** | delete persona; switch back to `demo` |
+| 2 | Import `stylist.hpersona` into HomePilot and publish it with alias `stylist`; set SmartMirror `SMARTMIRROR_BACKEND=ollabridge` on a Vercel **preview** | delete persona; switch back to `demo` |
 | 3 | Pair the simulator; run the M1a exit checks; promote to production | "Forget this screen", revoke the device in the dashboard |
 | 4 | Merge OL-1/HP-1 (flags off); enable `HOMEPILOT_MIRROR_ENABLED`, `HOMEPILOT_MIRROR_RELAY_ENABLED`, `HOMEPILOT_MIRROR_JOBS_ENABLED`, `HOMEPILOT_MIRROR_MCP_ENABLED` with the allow-list `hp.smartmirror.*` on the owner's PC | turn the flags off; everything returns to today's behaviour |
 | 5 | M2+ flags one at a time (`…IMAGE_EDIT…`, `…MEDIA…`, `NODE_JOBS_STORE=sqlite`) | flag off; the sqlite file can be deleted |
