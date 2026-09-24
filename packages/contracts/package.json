@@ -1,0 +1,9 @@
+{
+  "name": "@smartmirror/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared SmartMirror contracts consumed by the Python backend tests and the web BFF.",
+  "exports": {
+    "./mcp-tools.json": "./smartmirror-mcp-tools.json"
+  }
+}

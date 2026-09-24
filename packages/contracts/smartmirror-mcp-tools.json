@@ -6,12 +6,20 @@
       "required": []
     },
     {
+      "name": "hp.smartmirror.wardrobe_add",
+      "required": ["category"]
+    },
+    {
       "name": "hp.smartmirror.style_suggest",
       "required": ["prompt"]
     },
     {
       "name": "hp.smartmirror.tryon_create",
       "required": ["outfit_id", "body_capture_ref"]
+    },
+    {
+      "name": "hp.smartmirror.job_get",
+      "required": ["job_id"]
     }
   ]
 }

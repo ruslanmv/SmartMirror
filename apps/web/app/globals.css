@@ -1,0 +1,60 @@
+@import "@smartmirror/ui/styles.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  background: var(--sm-bg);
+}
+
+/*
+ * The mirror UI scales with the viewport so the same layout reads from a
+ * laptop at arm's length and an Echo Show 21 across the room.
+ * 1920×1080 → ~20px root; 1440×900 → ~15px; phones clamp at 14px.
+ */
+html.mirror-root,
+html:has(.mirror-app) {
+  font-size: clamp(14px, min(1.05vw, 1.9vh), 28px);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--sm-bg);
+  color: var(--sm-text);
+  font-family: var(--sm-font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: lining-nums;
+}
+
+h1, h2, h3, h4, p { margin: 0; }
+a { color: inherit; }
+img, svg, video { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus:not(:focus-visible) { outline: none; }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+::selection { background: var(--sm-accent-soft); color: var(--sm-accent-strong); }
+
+::-webkit-scrollbar { width: 0.6rem; height: 0.6rem; }
+::-webkit-scrollbar-thumb { background: var(--sm-surface-3); border-radius: 999px; }
+::-webkit-scrollbar-track { background: transparent; }

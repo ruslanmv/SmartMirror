@@ -1,0 +1,171 @@
+import "server-only";
+
+import { TOOLS, findTool, type HealthReport } from "@/lib/tools";
+
+import { getConfig, pairingRequired, type ServerConfig } from "./config";
+import { demoAddItem, demoCreateTryOn, demoJob, demoSuggest, demoWardrobe } from "./demo";
+import { OllaBridgeClient, UpstreamError, unwrapToolResult } from "./ollabridge";
+import { SessionConfigError, readSession, type SessionData } from "./session";
+
+/**
+ * Backend-for-frontend dispatch. The browser calls one allow-listed tool at a
+ * time; this module decides where it runs:
+ *
+ *   demo        → in-process sample data (default for previews)
+ *   direct      → SmartMirror /rpc on a reachable host (local development)
+ *   ollabridge  → OllaBridge → owner's HomePilot → SmartMirror MCP
+ */
+
+export class BffError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string,
+  ) {
+    super(message);
+  }
+}
+
+function ollabridgeToken(config: ServerConfig, session: SessionData | null): string {
+  if (session?.kind === "device" && session.deviceToken) return session.deviceToken;
+  if (session?.kind === "owner" && config.ollabridge.ownerToken) return config.ollabridge.ownerToken;
+  throw new BffError("Pair this screen to continue", 401, "pairing_required");
+}
+
+export async function requireAccess(config: ServerConfig): Promise<SessionData | null> {
+  const session = await readSession();
+  if (pairingRequired(config) && !session) {
+    throw new BffError("Pair this screen to continue", 401, "pairing_required");
+  }
+  return session;
+}
+
+export function validateToolCall(tool: string, args: unknown): Record<string, unknown> {
+  const spec = findTool(tool);
+  if (!spec) throw new BffError(`Unknown tool: ${tool}`, 404, "unknown_tool");
+  if (!args || typeof args !== "object" || Array.isArray(args)) {
+    throw new BffError("Tool arguments must be an object", 400, "bad_arguments");
+  }
+  const record = args as Record<string, unknown>;
+  for (const key of spec.required) {
+    if (record[key] === undefined || record[key] === null || record[key] === "") {
+      throw new BffError(`Missing argument: ${key}`, 400, "bad_arguments");
+    }
+  }
+  return record;
+}
+
+export async function callTool(tool: string, rawArgs: unknown): Promise<unknown> {
+  const config = getConfig();
+  const args = validateToolCall(tool, rawArgs);
+  const session = await requireAccess(config);
+  // The profile is decided server-side; a browser cannot address another profile.
+  const scoped = { ...args, profile_id: config.profileId };
+  if (tool === TOOLS.jobGet) delete (scoped as Record<string, unknown>).profile_id;
+
+  switch (config.mode) {
+    case "demo":
+      return callDemo(tool, scoped);
+    case "direct":
+      return callDirect(config, tool, scoped);
+    case "ollabridge": {
+      const client = new OllaBridgeClient(config.ollabridge.baseUrl!, ollabridgeToken(config, session));
+      const node = await client.resolveNode(session?.nodeId ?? config.ollabridge.nodeId);
+      return client.callTool(config.ollabridge, node.node_id, tool, scoped);
+    }
+  }
+}
+
+function callDemo(tool: string, args: Record<string, unknown>): unknown {
+  switch (tool) {
+    case TOOLS.wardrobeList:
+      return demoWardrobe();
+    case TOOLS.wardrobeAdd:
+      return demoAddItem(args);
+    case TOOLS.styleSuggest:
+      return demoSuggest(String(args.prompt), Number(args.limit) || 3);
+    case TOOLS.tryonCreate:
+      return demoCreateTryOn(String(args.outfit_id));
+    case TOOLS.jobGet:
+      return demoJob(String(args.job_id));
+    default:
+      throw new BffError(`Tool not available in demo mode: ${tool}`, 501, "not_implemented");
+  }
+}
+
+async function callDirect(config: ServerConfig, tool: string, args: Record<string, unknown>): Promise<unknown> {
+  const res = await fetch(`${config.smartmirrorApiUrl}/rpc`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "tools/call", params: { name: tool, arguments: args } }),
+    signal: AbortSignal.timeout(15_000),
+    cache: "no-store",
+  }).catch(() => {
+    throw new UpstreamError("SmartMirror API is unreachable", 503);
+  });
+  const body = (await res.json().catch(() => null)) as { result?: unknown; error?: { message?: string } } | null;
+  if (!res.ok || !body || body.error) {
+    throw new UpstreamError(body?.error?.message ?? `SmartMirror API → ${res.status}`, res.status >= 500 ? 502 : 400);
+  }
+  return unwrapToolResult(body.result);
+}
+
+export async function health(): Promise<HealthReport> {
+  const config = getConfig();
+  const session = await readSession().catch(() => null);
+  const base: HealthReport = {
+    backend: config.mode,
+    paired: Boolean(session),
+    pairingRequired: pairingRequired(config),
+    ollabridge: "n/a",
+    homepilot: "n/a",
+    checkedAt: new Date().toISOString(),
+  };
+
+  if (config.mode === "demo") return { ...base, ollabridge: "ok", homepilot: "ok" };
+
+  if (config.mode === "direct") {
+    const ok = await fetch(`${config.smartmirrorApiUrl}/health`, { signal: AbortSignal.timeout(4_000), cache: "no-store" })
+      .then((r) => r.ok)
+      .catch(() => false);
+    return { ...base, homepilot: ok ? "ok" : "down" };
+  }
+
+  let token: string;
+  try {
+    token = ollabridgeToken(config, session);
+  } catch {
+    return base;
+  }
+  const client = new OllaBridgeClient(config.ollabridge.baseUrl!, token, 5_000);
+  try {
+    const nodes = await client.listNodes();
+    const preferred = session?.nodeId ?? config.ollabridge.nodeId;
+    const node = preferred ? nodes.find((n) => n.node_id === preferred) : nodes.find((n) => n.online !== false);
+    return {
+      ...base,
+      ollabridge: "ok",
+      homepilot: node && node.online !== false ? "ok" : "down",
+      node: node ? { id: node.node_id, name: node.node_name } : undefined,
+    };
+  } catch {
+    return { ...base, ollabridge: "down", homepilot: "down" };
+  }
+}
+
+export function toErrorResponse(err: unknown): Response {
+  if (err instanceof BffError) {
+    return Response.json({ error: err.message, code: err.code }, { status: err.status });
+  }
+  if (err instanceof UpstreamError) {
+    return Response.json({ error: err.message, code: "upstream" }, { status: err.status });
+  }
+  if (err instanceof SessionConfigError) {
+    return Response.json({ error: err.message, code: "misconfigured" }, { status: 500 });
+  }
+  const message = err instanceof Error ? err.message : "Unexpected error";
+  // Validation errors from the demo backend (e.g. "Job not found").
+  if (/required|not found/i.test(message)) return Response.json({ error: message, code: "bad_request" }, { status: 400 });
+  console.error("[smartmirror-bff]", err);
+  return Response.json({ error: "Unexpected server error", code: "internal" }, { status: 500 });
+}

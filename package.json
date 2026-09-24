@@ -1,0 +1,14 @@
+{
+  "name": "smartmirror-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @smartmirror/web dev",
+    "build": "pnpm --filter @smartmirror/web build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  }
+}

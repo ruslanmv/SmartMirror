@@ -1,0 +1,19 @@
+.companion-page {
+  min-height: 100dvh;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem 1rem 2.5rem;
+  background: radial-gradient(40rem 22rem at 50% -6rem, rgba(217, 183, 124, 0.16), transparent 70%), var(--sm-bg);
+}
+.companion-card {
+  display: grid;
+  gap: 1.1rem;
+  width: min(28rem, 100%);
+  padding: 1.5rem;
+  text-align: center;
+}
+.companion-card .portrait { width: min(17rem, 72vw); }
+.companion-card .sm-btn { width: 100%; }
+.companion-note { font-size: 0.8rem; color: var(--sm-text-3); }
