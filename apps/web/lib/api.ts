@@ -8,6 +8,7 @@ import {
   type JobStatus,
   type NewWardrobeItem,
   type StyleSuggestResult,
+  type DraftItem,
   type TryOnCreated,
   type WardrobeItem,
 } from "./tools";
@@ -66,6 +67,14 @@ export async function callTool<T>(tool: string, args: Record<string, unknown> = 
 export const api = {
   wardrobe: () => callTool<WardrobeItem[]>(TOOLS.wardrobeList),
   addItem: (item: NewWardrobeItem) => callTool<WardrobeItem>(TOOLS.wardrobeAdd, { ...item }),
+  ingestGarment: async (dataUrl: string, name?: string) => {
+    const small = await downscaleImage(dataUrl, 1280, 0.88).catch(() => dataUrl);
+    return callTool<WardrobeItem>(TOOLS.wardrobeIngest, { image: small, ...(name ? { name } : {}) });
+  },
+  reviewQueue: () => callTool<DraftItem[]>(TOOLS.wardrobeReview, { limit: 12 }),
+  confirmGarment: (itemId: string, changes: { category?: string; subcategory?: string; color?: string; name?: string }) =>
+    callTool<WardrobeItem>(TOOLS.wardrobeConfirm, { item_id: itemId, ...changes }),
+  removeGarment: (itemId: string) => callTool<{ removed: string }>(TOOLS.wardrobeRemove, { item_id: itemId }),
   suggest: (prompt: string, limit = 3) => callTool<StyleSuggestResult>(TOOLS.styleSuggest, { prompt, limit }),
   createTryOn: (outfitId: string, bodyCaptureRef: string, instruction = "") =>
     callTool<TryOnCreated>(TOOLS.tryonCreate, { outfit_id: outfitId, body_capture_ref: bodyCaptureRef, instruction }),
@@ -79,7 +88,7 @@ export const api = {
   companionStart: (purpose: "body" | "garment" = "body") =>
     request<
       | { mode: "local" }
-      | { mode: "remote"; sessionId: string; code: string; ticket: string; expiresAt: string }
+      | { mode: "remote"; sessionId: string; code: string; ticket: string; expiresAt: string; purpose?: "body" | "garment" }
     >("/api/companion/start", { method: "POST", body: JSON.stringify({ purpose }) }),
   companionStatus: (sessionId: string) =>
     request<{ status: "waiting" | "received" | "expired"; preview_url?: string; asset_id?: string | null }>(
@@ -87,7 +96,7 @@ export const api = {
       { method: "POST", body: JSON.stringify({ sessionId }) },
     ),
   companionUpload: (ticket: string, image: string) =>
-    request<{ ok: true }>("/api/companion/upload", { method: "POST", body: JSON.stringify({ ticket, image }) }),
+    request<{ ok: true; itemId?: string }>("/api/companion/upload", { method: "POST", body: JSON.stringify({ ticket, image }) }),
   health: () => request<HealthReport>("/api/health"),
   session: () =>
     request<{

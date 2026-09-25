@@ -10,6 +10,9 @@ All notable changes to SmartMirror will be documented here.
   "type a code" fallback (`/pair`), SmartMirror client identity, sealed pending
   pairing cookie, paired-screen card with "Forget this screen".
 - Stylist persona template for HomePilot (`integrations/homepilot/personas`).
+- Add clothes with AI on the owner's PC: phone closet scan or upload → colour (and, with the
+  optional ML extra, category) suggested → one-press confirm in a review queue; photos in the
+  wardrobe grid; benchmark tool.
 - AI try-on on the owner's PC: photos stored at home via `hp.smartmirror.capture_upload`
   (EXIF removed, body photos expire), HomePilot `images.edit` provider (cloud fallback),
   background jobs + worker, preview returned as a small image with a disclaimer and

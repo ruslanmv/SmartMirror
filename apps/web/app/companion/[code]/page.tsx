@@ -16,7 +16,11 @@ import "../companion.css";
 export default function CompanionCapture() {
   const { code } = useParams<{ code: string }>();
   // Present when the mirror uses a real backend: the photo goes to the owner's PC.
-  const ticket = useSearchParams().get("t");
+  const search = useSearchParams();
+  const ticket = search.get("t");
+  // Closet scan: several clothes photos in a row (the ticket decides; this only changes the wording).
+  const garments = search.get("m") === "garment";
+  const [count, setCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -41,7 +45,12 @@ export default function CompanionCapture() {
     try {
       if (ticket) {
         await api.companionUpload(ticket, photo);
-        setSent(true);
+        if (garments) {
+          setCount((n) => n + 1);
+          setPhoto(null); // ready for the next piece
+        } else {
+          setSent(true);
+        }
       } else {
         setSent(sendCompanionPhoto(code, photo));
       }
@@ -58,7 +67,17 @@ export default function CompanionCapture() {
       <section className="sm-panel companion-card">
         <Badge tone="accent">Screen {code}</Badge>
         <h1 className="sm-display" style={{ fontSize: "2rem" }}>
-          {sent ? "Sent to your mirror" : photo ? "Looking good?" : "Take a full-length photo"}
+          {garments
+            ? photo
+              ? "Send this piece?"
+              : count
+                ? `${count} sent · next piece`
+                : "Photograph one piece of clothing"
+            : sent
+              ? "Sent to your mirror"
+              : photo
+                ? "Looking good?"
+                : "Take a full-length photo"}
         </h1>
         <Mirror imageUrl={photo} label={photo ? "Your photo" : "Photo guide"} />
         <input
@@ -86,7 +105,11 @@ export default function CompanionCapture() {
           </>
         ) : (
           <>
-            <p className="sm-muted">Prop your phone at hip height, a few steps away, and step back until you fit the arch.</p>
+            <p className="sm-muted">
+              {garments
+                ? "Lay the piece flat or hang it against a plain wall, in good light. Your PC suggests the category and colour; you confirm on the mirror."
+                : "Prop your phone at hip height, a few steps away, and step back until you fit the arch."}
+            </p>
             <Button variant="primary" size="lg" icon="camera" onClick={() => input.current?.click()}>
               Open camera
             </Button>

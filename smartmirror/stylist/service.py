@@ -23,7 +23,8 @@ def suggest(db: Session, profile_id: str, prompt: str, limit: int = 3) -> tuple[
     db.add(req)
     db.flush()
 
-    items = list(db.scalars(select(WardrobeItem).where(WardrobeItem.profile_id == profile_id)))
+    # Only pieces the owner confirmed; drafts wait in the review queue.
+    items = list(db.scalars(select(WardrobeItem).where(WardrobeItem.profile_id == profile_id, WardrobeItem.status == "confirmed")))
     wanted_colors = set(intent["colors"])
     wanted_categories = set(intent["categories"])
 

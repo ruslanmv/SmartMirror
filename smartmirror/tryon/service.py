@@ -80,7 +80,7 @@ def create_tryon_job(db: Session, *, profile_id: str, outfit_id: str, body_captu
 def _run_in_thread(job_id: str) -> None:
     try:
         asyncio.run(run_tryon_job(job_id))
-    except Exception:  # noqa: BLE001 — the job row carries the failure
+    except Exception:
         log.exception("try-on job %s crashed", job_id)
 
 

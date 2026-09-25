@@ -10,10 +10,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from services.api.app.config import get_settings
 from services.api.app.database import get_db
 from services.api.app.models import CaptureSession, GenerationJob, WardrobeItem
-from services.api.app.config import get_settings
-from smartmirror import media
+from smartmirror import media, wardrobe
 from smartmirror.privacy import delete_profile_data, record
 from smartmirror.storage import get_store
 from smartmirror.stylist.service import suggest
@@ -34,13 +34,50 @@ def _item_dict(x: WardrobeItem) -> dict[str, Any]:
         "fit": x.fit,
         "length": x.length,
         "metadata": x.metadata_json,
+        "status": x.status,
     }
 
 
 async def _wardrobe_list(args: dict[str, Any], db: Session) -> Any:
     profile_id = str(args.get("profile_id") or "local-user")
-    items = list(db.scalars(select(WardrobeItem).where(WardrobeItem.profile_id == profile_id)))
-    return [_item_dict(x) for x in items]
+    query = select(WardrobeItem).where(WardrobeItem.profile_id == profile_id)
+    if not args.get("include_drafts"):
+        query = query.where(WardrobeItem.status == "confirmed")
+    out = []
+    for x in db.scalars(query):
+        item = _item_dict(x)
+        # Photographed pieces carry a small thumbnail for the grid.
+        thumb = wardrobe.thumbnail(db, get_store(), x, edge=192) if x.image_asset_id else None
+        if thumb:
+            item["metadata"] = {**(item["metadata"] or {}), "image_url": thumb}
+        out.append(item)
+    return out
+
+
+async def _wardrobe_ingest(args: dict[str, Any], db: Session) -> Any:
+    settings = get_settings()
+    data = media.decode_data_url(str(args.get("image") or ""), settings.smartmirror_max_upload_mb * 1024 * 1024)
+    name = args.get("name")
+    item = wardrobe.ingest_garment(
+        db, get_store(), profile_id=str(args.get("profile_id") or "local-user"), data=data,
+        name=str(name)[:80] if isinstance(name, str) and name.strip() else None,
+    )
+    return {**_item_dict(item), "ai": item.ai_metadata}
+
+
+async def _wardrobe_review(args: dict[str, Any], db: Session) -> Any:
+    limit = max(1, min(24, int(args.get("limit") or 12)))
+    return wardrobe.review_queue(db, get_store(), profile_id=str(args.get("profile_id") or "local-user"), limit=limit)
+
+
+async def _wardrobe_confirm(args: dict[str, Any], db: Session) -> Any:
+    item = wardrobe.confirm(db, profile_id=str(args.get("profile_id") or "local-user"), item_id=str(args["item_id"]), changes=args)
+    return _item_dict(item)
+
+
+async def _wardrobe_remove(args: dict[str, Any], db: Session) -> Any:
+    wardrobe.remove(db, get_store(), profile_id=str(args.get("profile_id") or "local-user"), item_id=str(args["item_id"]))
+    return {"removed": str(args["item_id"])}
 
 
 async def _wardrobe_add(args: dict[str, Any], db: Session) -> Any:
@@ -235,6 +272,45 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
         "handler": _wardrobe_add,
+    },
+    "hp.smartmirror.wardrobe_ingest": {
+        "description": "Add a garment from a photo; the PC classifies it and it waits in the review queue.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["image"],
+            "properties": {"profile_id": {"type": "string"}, "image": {"type": "string"}, "name": {"type": "string"}},
+        },
+        "handler": _wardrobe_ingest,
+    },
+    "hp.smartmirror.wardrobe_review": {
+        "description": "Draft garments waiting for the owner to confirm, with AI suggestions and confidence.",
+        "inputSchema": {"type": "object", "properties": {"profile_id": {"type": "string"}, "limit": {"type": "integer"}}},
+        "handler": _wardrobe_review,
+    },
+    "hp.smartmirror.wardrobe_confirm": {
+        "description": "Confirm a draft garment, optionally correcting category, subcategory, colour or name.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["item_id"],
+            "properties": {
+                "profile_id": {"type": "string"},
+                "item_id": {"type": "string"},
+                "category": {"type": "string"},
+                "subcategory": {"type": "string"},
+                "color": {"type": "string"},
+                "name": {"type": "string"},
+            },
+        },
+        "handler": _wardrobe_confirm,
+    },
+    "hp.smartmirror.wardrobe_remove": {
+        "description": "Remove a garment (and its photo) from the wardrobe.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["item_id"],
+            "properties": {"profile_id": {"type": "string"}, "item_id": {"type": "string"}},
+        },
+        "handler": _wardrobe_remove,
     },
     "hp.smartmirror.style_suggest": {
         "description": "Suggest outfits using items from the user's real SmartMirror wardrobe.",

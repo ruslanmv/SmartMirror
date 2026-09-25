@@ -26,6 +26,12 @@ export async function POST(request: Request) {
     }
     if (image.length > MAX_DATA_URL) return Response.json({ error: "Photo is too large", code: "too_large" }, { status: 413 });
 
+    if (ticket.purpose === "garment") {
+      // Closet scan: each photo becomes a draft garment in the review queue.
+      const name = typeof (body as { name?: unknown }).name === "string" ? String((body as { name: string }).name).slice(0, 80) : undefined;
+      const item = (await callToolAs(ticket.session, TOOLS.wardrobeIngest, { image, ...(name ? { name } : {}) })) as { id: string };
+      return Response.json({ ok: true, itemId: item.id });
+    }
     const uploaded = (await callToolAs(ticket.session, TOOLS.captureUpload, { image, purpose: "body" })) as { asset_id: string };
     await callToolAs(ticket.session, TOOLS.captureSessionComplete, { session_id: ticket.sid, asset_id: uploaded.asset_id });
     return Response.json({ ok: true });

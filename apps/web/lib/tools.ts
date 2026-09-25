@@ -15,6 +15,10 @@ export const TOOLS = {
   jobGet: "hp.smartmirror.job_get",
   profileDelete: "hp.smartmirror.profile_delete",
   captureUpload: "hp.smartmirror.capture_upload",
+  wardrobeIngest: "hp.smartmirror.wardrobe_ingest",
+  wardrobeReview: "hp.smartmirror.wardrobe_review",
+  wardrobeConfirm: "hp.smartmirror.wardrobe_confirm",
+  wardrobeRemove: "hp.smartmirror.wardrobe_remove",
   captureSessionCreate: "hp.smartmirror.capture_session_create",
   captureSessionComplete: "hp.smartmirror.capture_session_complete",
   captureSessionGet: "hp.smartmirror.capture_session_get",
@@ -91,4 +95,15 @@ export interface HealthReport {
   homepilot: "ok" | "down" | "n/a";
   node?: { id: string; name?: string | null };
   checkedAt: string;
+}
+
+/** A garment waiting in the review queue, with the PC's suggestions. */
+export interface DraftItem {
+  id: string;
+  image_url: string | null;
+  suggested: { category: string | null; subcategory: string | null; color: string | null; pattern: string | null };
+  confidence: Record<string, number>;
+  alternatives: { category?: string[]; subcategory?: string[]; color?: string[] };
+  needs_review: string[];
+  categories: string[];
 }

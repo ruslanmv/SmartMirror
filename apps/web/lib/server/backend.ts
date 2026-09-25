@@ -3,7 +3,17 @@ import "server-only";
 import { TOOLS, findTool, type HealthReport } from "@/lib/tools";
 
 import { getConfig, pairingRequired, type ServerConfig } from "./config";
-import { demoAddItem, demoCreateTryOn, demoJob, demoSuggest, demoWardrobe } from "./demo";
+import {
+  demoAddItem,
+  demoConfirm,
+  demoCreateTryOn,
+  demoIngest,
+  demoJob,
+  demoRemove,
+  demoReview,
+  demoSuggest,
+  demoWardrobe,
+} from "./demo";
 import { MIRROR_CAPABILITY, OllaBridgeClient, UpstreamError, unwrapToolResult } from "./ollabridge";
 import { SessionConfigError, readSession, writeSession, type SessionData } from "./session";
 
@@ -105,6 +115,14 @@ function callDemo(tool: string, args: Record<string, unknown>): unknown {
       return demoCreateTryOn(String(args.outfit_id));
     case TOOLS.jobGet:
       return demoJob(String(args.job_id));
+    case TOOLS.wardrobeIngest:
+      return demoIngest(args);
+    case TOOLS.wardrobeReview:
+      return demoReview();
+    case TOOLS.wardrobeConfirm:
+      return demoConfirm(args);
+    case TOOLS.wardrobeRemove:
+      return demoRemove(args);
     case TOOLS.profileDelete:
       // Demo data lives in this server process and resets on restart; the
       // screen clears its own photos and looks.

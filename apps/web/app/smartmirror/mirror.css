@@ -523,3 +523,24 @@ html[data-dpad="true"] .sm-chip:focus-visible { transform: scale(1.06); }
 /* Privacy indicator, like the hardware camera light on laptops and phones. */
 .camera-on { display: inline-flex; align-items: center; gap: 0.45em; padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid rgba(240, 140, 128, 0.35); background: rgba(240, 140, 128, 0.1); font: 600 0.75rem/1 var(--sm-font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: #f6c4bc; white-space: nowrap; }
 .camera-on__dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #ff5b4a; box-shadow: 0 0 0.5rem #ff5b4a; animation: sm-pulse 2s ease-in-out infinite; }
+
+/* ================= Add clothes ================= */
+
+.add-clothes { display: grid; grid-template-columns: minmax(18rem, 0.7fr) minmax(0, 1.3fr); gap: 2rem; min-height: 0; }
+.add-clothes__source { display: grid; gap: 1rem; justify-items: center; align-content: start; padding: 2rem; text-align: center; }
+.add-clothes__source .qr { width: 12rem; height: 12rem; }
+.add-clothes__or { color: var(--sm-text-3); font-size: 0.85rem; letter-spacing: 0.2em; text-transform: uppercase; }
+.add-clothes__note { font-size: 0.85rem; max-width: 22rem; }
+.add-clothes__queue { display: grid; gap: 1rem; align-content: start; }
+.draft { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 1.25rem; padding: 1.1rem; align-items: start; }
+.draft__photo { width: 8.5rem; height: 10.5rem; border-radius: var(--sm-radius); overflow: hidden; display: grid; place-items: center; background: rgba(255, 255, 255, 0.04); }
+.draft__photo img { width: 100%; height: 100%; object-fit: cover; }
+.draft__photo svg { width: 2.5rem; height: 2.5rem; color: var(--sm-text-3); }
+.draft__body { display: grid; gap: 0.7rem; }
+.draft__hint { margin-left: 0.5rem; font-size: 0.7rem; color: var(--sm-accent); letter-spacing: 0.08em; text-transform: none; }
+
+@media (max-width: 900px) {
+  .add-clothes { grid-template-columns: 1fr; }
+  .draft { grid-template-columns: 6rem minmax(0, 1fr); }
+  .draft__photo { width: 6rem; height: 7.5rem; }
+}

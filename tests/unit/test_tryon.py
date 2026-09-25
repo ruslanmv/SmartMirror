@@ -253,7 +253,7 @@ def test_homepilot_provider_errors(monkeypatch, responses, code):
 
 def test_capture_session_round_trip(store):
     client = TestClient(app)
-    call = lambda name, args: rpc(client, name, {"profile_id": "p-hand", **args})  # noqa: E731
+    call = lambda name, args: rpc(client, name, {"profile_id": "p-hand", **args})
     sid = call("hp.smartmirror.capture_session_create", {}).json()["result"]["structuredContent"]["session_id"]
     waiting = call("hp.smartmirror.capture_session_get", {"session_id": sid}).json()["result"]["structuredContent"]
     assert waiting["status"] == "waiting" and "preview_url" not in waiting

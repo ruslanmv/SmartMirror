@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Chip, Icon, garmentColor } from "@smartmirror/ui";
+import { Button, Chip, Icon, buttonClass, garmentColor } from "@smartmirror/ui";
+import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -33,9 +34,14 @@ export default function WardrobePage() {
         title="My wardrobe"
         subtitle={items ? `${items.length} pieces · stored on your HomePilot` : "Loading your pieces…"}
         actions={
-          <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>
-            Add piece
-          </Button>
+          <>
+            <Link href="/smartmirror/wardrobe/add" className={buttonClass({ variant: "primary" })} data-autofocus>
+              <Icon name="camera" /> Add clothes
+            </Link>
+            <Button icon="plus" onClick={() => setAdding(true)}>
+              Add by hand
+            </Button>
+          </>
         }
       />
       <div className="wardrobe">

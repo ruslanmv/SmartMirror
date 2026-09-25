@@ -54,6 +54,6 @@ class OllaBridgeCloudEditProvider(VirtualTryOnProvider):
             if not images:
                 raise ProviderError("IMAGE_EDIT_FAILED: no image produced")
             url = images[0].get("url", "")
-            img = await client.get(url if url.startswith("http") else url, headers=headers)
+            img = await client.get(url, headers=headers)  # relative URLs resolve against base_url
             img.raise_for_status()
         return TryOnResult(images=[img.content], provider=self.name, metadata={"cloud_job_id": job_id})

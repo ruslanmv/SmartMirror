@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { JobStatus, OutfitCandidate, StyleSuggestResult, TryOnCreated, WardrobeItem } from "@/lib/tools";
+import type { DraftItem, JobStatus, OutfitCandidate, StyleSuggestResult, TryOnCreated, WardrobeItem } from "@/lib/tools";
 
 /**
  * Demo backend used when no SmartMirror/OllaBridge backend is configured, so
@@ -54,6 +54,63 @@ export function demoAddItem(args: Record<string, unknown>): WardrobeItem {
   added.push(item);
   if (added.length > 100) added.shift();
   return item;
+}
+
+// ---- Add clothes (demo): photos wait in a review queue until confirmed ----
+
+const DEMO_CATEGORIES = ["accessory", "bag", "bottom", "dress", "outerwear", "shoes", "top"];
+const drafts: (DraftItem & { name?: string })[] = [];
+
+export function demoIngest(args: Record<string, unknown>): WardrobeItem {
+  const image = typeof args.image === "string" ? args.image : "";
+  if (!/^data:image\/(jpeg|png|webp);base64,/.test(image)) throw new Error("image is required");
+  const id = `demo_draft_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  // The demo has no classifier: the owner picks the category and colour.
+  drafts.unshift({
+    id,
+    image_url: image.length < 400_000 ? image : null,
+    suggested: { category: null, subcategory: null, color: null, pattern: null },
+    confidence: {},
+    alternatives: {},
+    needs_review: ["category", "color"],
+    categories: DEMO_CATEGORIES,
+    name: typeof args.name === "string" ? args.name.slice(0, 80) : undefined,
+  });
+  if (drafts.length > 24) drafts.pop();
+  return { id, category: "unsorted", metadata: {} };
+}
+
+export function demoReview(): DraftItem[] {
+  return drafts.slice(0, 12).map(({ name: _name, ...d }) => d);
+}
+
+export function demoConfirm(args: Record<string, unknown>): WardrobeItem {
+  const i = drafts.findIndex((d) => d.id === args.item_id);
+  if (i < 0) throw new Error("Wardrobe item not found");
+  const d = drafts[i]!;
+  const str = (k: string) => (typeof args[k] === "string" && (args[k] as string).trim() ? (args[k] as string).trim().slice(0, 64) : null);
+  const category = str("category");
+  if (!category) throw new Error("category is required");
+  drafts.splice(i, 1);
+  const item: WardrobeItem = {
+    id: d.id.replace("demo_draft_", "demo_added_"),
+    category,
+    subcategory: str("subcategory"),
+    color: str("color"),
+    metadata: { name: str("name") ?? d.name, image_url: d.image_url ?? undefined },
+  };
+  added.push(item);
+  return item;
+}
+
+export function demoRemove(args: Record<string, unknown>): { removed: string } {
+  const id = String(args.item_id ?? "");
+  const i = drafts.findIndex((d) => d.id === id);
+  if (i >= 0) drafts.splice(i, 1);
+  const j = added.findIndex((a) => a.id === id);
+  if (j >= 0) added.splice(j, 1);
+  if (i < 0 && j < 0) throw new Error("Wardrobe item not found");
+  return { removed: id };
 }
 
 type Slot = "dress" | "top" | "bottom" | "layer" | "shoes" | "bag";

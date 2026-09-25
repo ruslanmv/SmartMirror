@@ -13,6 +13,8 @@ os.environ.setdefault("SMARTMIRROR_DATABASE_URL", f"sqlite:///{_tmp}/test.db")
 os.environ.setdefault("SMARTMIRROR_MEDIA_DIR", f"{_tmp}/media")
 # Tests pass providers explicitly; never start background try-ons against a real HomePilot.
 os.environ.setdefault("SMARTMIRROR_IMAGE_PROVIDER", "none")
+# The colour-only baseline classifier: no model downloads in tests.
+os.environ.setdefault("SMARTMIRROR_ML_MODEL", "")
 
 from services.api.app import models  # noqa: F401
 from services.api.app.database import Base, engine

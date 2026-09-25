@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     smartmirror_inline_jobs: bool = True
     smartmirror_tryon_timeout_s: int = 600
 
+    # Wardrobe AI: a transformers zero-shot model id ("" = colour-only baseline);
+    # needs `pip install smartmirror[ml]`. Device: auto (CUDA if present), cpu, cuda.
+    smartmirror_ml_model: str = "patrickjohncyh/fashion-clip"
+    smartmirror_ml_device: str = "auto"
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -10,6 +10,22 @@
       "required": ["category"]
     },
     {
+      "name": "hp.smartmirror.wardrobe_ingest",
+      "required": ["image"]
+    },
+    {
+      "name": "hp.smartmirror.wardrobe_review",
+      "required": []
+    },
+    {
+      "name": "hp.smartmirror.wardrobe_confirm",
+      "required": ["item_id"]
+    },
+    {
+      "name": "hp.smartmirror.wardrobe_remove",
+      "required": ["item_id"]
+    },
+    {
       "name": "hp.smartmirror.style_suggest",
       "required": ["prompt"]
     },

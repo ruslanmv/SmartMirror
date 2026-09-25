@@ -151,3 +151,26 @@ describe("/api/media", () => {
     expect((await media(req({ dataUrl: big }))).status).toBe(413);
   });
 });
+
+describe("closet scan (garment tickets)", () => {
+  it("each phone photo becomes a draft garment; the session stays open", async () => {
+    useOllaBridge();
+    await writeSession({ kind: "device", deviceToken: TOKEN });
+    const calls = fakeHome({
+      "hp.smartmirror.capture_session_create": { session_id: "cap_" + "b".repeat(32), expires_at: "x" },
+      "hp.smartmirror.wardrobe_ingest": { id: "garment_1", status: "draft" },
+    });
+    const started = await (await start(req({ purpose: "garment" }))).json();
+    expect(started.purpose).toBe("garment");
+    jar.clear();
+    for (const ip of ["10.4.0.1", "10.4.0.1"]) {
+      const res = await upload(req({ ticket: started.ticket, image: IMAGE }, ip));
+      expect(await res.json()).toEqual({ ok: true, itemId: "garment_1" });
+    }
+    expect(calls.map((c) => c.tool)).toEqual([
+      "hp.smartmirror.capture_session_create",
+      "hp.smartmirror.wardrobe_ingest",
+      "hp.smartmirror.wardrobe_ingest",
+    ]);
+  });
+});

@@ -20,7 +20,7 @@ from services.api.app.models import Asset
 from smartmirror.privacy import record
 from smartmirror.storage import MediaStore, make_key, sha256
 
-_DATA_URL = re.compile(r"^data:(image/(?:jpeg|png|webp));base64,(.+)$", re.S)
+_DATA_URL = re.compile(r"^data:(image/(?:jpeg|png|webp));base64,(.+)$", re.DOTALL)
 KINDS = {"capture", "garment", "cutout", "thumbnail", "mask", "preview"}
 MAX_EDGE = 1600
 
