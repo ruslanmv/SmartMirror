@@ -11,6 +11,10 @@ import {
   demoJob,
   demoRemove,
   demoReview,
+  demoSetCreate,
+  demoSetDelete,
+  demoSetList,
+  demoShopSuggest,
   demoSuggest,
   demoWardrobe,
 } from "./demo";
@@ -123,6 +127,16 @@ function callDemo(tool: string, args: Record<string, unknown>): unknown {
       return demoConfirm(args);
     case TOOLS.wardrobeRemove:
       return demoRemove(args);
+    case TOOLS.setCreate:
+      return demoSetCreate(args);
+    case TOOLS.setList:
+      return demoSetList();
+    case TOOLS.setDelete:
+      return demoSetDelete(args);
+    case TOOLS.shopSuggest:
+      return demoShopSuggest(args);
+    case TOOLS.shopMarkPurchased:
+      return { id: String(args.candidate_id), purchased: true };
     case TOOLS.profileDelete:
       // Demo data lives in this server process and resets on restart; the
       // screen clears its own photos and looks.

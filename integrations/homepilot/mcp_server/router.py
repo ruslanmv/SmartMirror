@@ -12,11 +12,18 @@ from sqlalchemy.orm import Session
 
 from services.api.app.config import get_settings
 from services.api.app.database import get_db
-from services.api.app.models import CaptureSession, GenerationJob, WardrobeItem
-from smartmirror import media, wardrobe
+from services.api.app.models import (
+    CaptureSession,
+    GenerationJob,
+    OutfitSet,
+    OutfitSetMember,
+    WardrobeItem,
+)
+from smartmirror import media, shopping, wardrobe
 from smartmirror.privacy import delete_profile_data, record
 from smartmirror.storage import get_store
-from smartmirror.stylist.service import suggest
+from smartmirror.stylist import engine
+from smartmirror.stylist.service import owned, suggest
 from smartmirror.tryon.service import create_tryon_job
 
 router = APIRouter()
@@ -123,9 +130,11 @@ async def _style_suggest(args: dict[str, Any], db: Session) -> Any:
                 "item_ids": o.item_ids,
                 "score": o.score,
                 "explanation": o.explanation,
+                "title": o.title,
             }
             for o in outfits
         ],
+        "gaps": (req.normalized_intent or {}).get("gaps", []),
     }
 
 
@@ -244,6 +253,78 @@ async def _capture_session_get(args: dict[str, Any], db: Session) -> Any:
         except media.MediaRejected:
             out["status"] = "expired"
     return out
+
+
+WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def _set_dict(db: Session, s: OutfitSet) -> dict[str, Any]:
+    members = db.scalars(select(OutfitSetMember).where(OutfitSetMember.set_id == s.id).order_by(OutfitSetMember.position))
+    return {
+        "id": s.id,
+        "kind": s.kind,
+        "title": s.title,
+        "params": s.params_json,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "looks": [{"label": m.label, "item_ids": m.item_ids, "explanation": m.explanation} for m in members],
+    }
+
+
+async def _set_create(args: dict[str, Any], db: Session) -> Any:
+    profile_id = str(args.get("profile_id") or "local-user")
+    kind = str(args.get("kind") or "week")
+    if kind not in ("week", "trip", "capsule"):
+        raise ValueError('kind must be "week", "trip" or "capsule"')
+    days = int(args.get("days") or (5 if kind == "week" else 3))
+    prompt = str(args.get("prompt") or ("office" if kind == "week" else "travel"))[:300]
+    items = owned(db, profile_id)
+    intent = engine.parse_intent(prompt, {i.color for i in items if i.color})
+    looks = engine.plan_set(items, intent, days)
+    if not looks:
+        raise ValueError("Not enough confirmed pieces to plan outfits yet")
+    title = str(args.get("title") or {"week": "This week", "trip": f"Trip · {days} days", "capsule": "Capsule"}[kind])[:200]
+    s = OutfitSet(profile_id=profile_id, kind=kind, title=title, params_json={"days": days, "prompt": prompt})
+    db.add(s)
+    db.flush()
+    for i, look in enumerate(looks):
+        label = WEEKDAYS[i % 7] if kind == "week" else f"Day {i + 1}"
+        db.add(OutfitSetMember(set_id=s.id, position=i, label=label, item_ids=look.item_ids, explanation=look.explanation))
+    record(db, profile_id, "sets.created", s.id)
+    db.commit()
+    return _set_dict(db, s)
+
+
+async def _set_list(args: dict[str, Any], db: Session) -> Any:
+    profile_id = str(args.get("profile_id") or "local-user")
+    rows = db.scalars(select(OutfitSet).where(OutfitSet.profile_id == profile_id).order_by(OutfitSet.created_at.desc()).limit(20))
+    return [_set_dict(db, s) for s in rows]
+
+
+async def _set_delete(args: dict[str, Any], db: Session) -> Any:
+    s = db.get(OutfitSet, str(args.get("set_id") or ""))
+    if s is None or s.profile_id != str(args.get("profile_id") or "local-user"):
+        raise ValueError("Set not found")
+    for m in db.scalars(select(OutfitSetMember).where(OutfitSetMember.set_id == s.id)):
+        db.delete(m)
+    db.delete(s)
+    db.commit()
+    return {"deleted": s.id}
+
+
+async def _shop_suggest(args: dict[str, Any], db: Session) -> Any:
+    category = str(args.get("category") or "").strip()
+    color = args.get("color")
+    try:
+        rows = shopping.suggest(db, profile_id=str(args.get("profile_id") or "local-user"), category=category,
+                                color=str(color) if isinstance(color, str) and color.strip() else None)
+    except shopping.ShoppingUnavailable as exc:
+        raise ValueError(str(exc)) from None
+    return [{"id": r.id, "title": r.title, "url": r.url, "provider": r.provider, "query": r.query} for r in rows]
+
+
+async def _shop_mark_purchased(args: dict[str, Any], db: Session) -> Any:
+    row = shopping.mark_purchased(db, profile_id=str(args.get("profile_id") or "local-user"), candidate_id=str(args.get("candidate_id") or ""))
+    return {"id": row.id, "purchased": row.purchased}
 
 
 TOOLS: dict[str, dict[str, Any]] = {
@@ -377,6 +458,49 @@ TOOLS: dict[str, dict[str, Any]] = {
             "properties": {"profile_id": {"type": "string"}, "session_id": {"type": "string"}},
         },
         "handler": _capture_session_get,
+    },
+    "hp.smartmirror.set_create": {
+        "description": "Plan a set of outfits from owned pieces: a work week, a trip, or a capsule.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+                "profile_id": {"type": "string"},
+                "kind": {"type": "string", "enum": ["week", "trip", "capsule"]},
+                "days": {"type": "integer", "minimum": 1, "maximum": 14},
+                "prompt": {"type": "string"},
+                "title": {"type": "string"},
+            },
+        },
+        "handler": _set_create,
+    },
+    "hp.smartmirror.set_list": {
+        "description": "Saved outfit sets, newest first.",
+        "inputSchema": {"type": "object", "properties": {"profile_id": {"type": "string"}}},
+        "handler": _set_list,
+    },
+    "hp.smartmirror.set_delete": {
+        "description": "Delete a saved outfit set.",
+        "inputSchema": {"type": "object", "required": ["set_id"], "properties": {"profile_id": {"type": "string"}, "set_id": {"type": "string"}}},
+        "handler": _set_delete,
+    },
+    "hp.smartmirror.shop_suggest": {
+        "description": "Where to buy a piece the wardrobe is missing (retailer search link; off unless enabled).",
+        "inputSchema": {
+            "type": "object",
+            "required": ["category"],
+            "properties": {"profile_id": {"type": "string"}, "category": {"type": "string"}, "color": {"type": "string"}},
+        },
+        "handler": _shop_suggest,
+    },
+    "hp.smartmirror.shop_mark_purchased": {
+        "description": "Remember that a suggested piece was bought.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["candidate_id"],
+            "properties": {"profile_id": {"type": "string"}, "candidate_id": {"type": "string"}},
+        },
+        "handler": _shop_mark_purchased,
     },
     "hp.smartmirror.profile_delete": {
         "description": "Delete everything SmartMirror stores for a profile (wardrobe, photos, looks, history).",

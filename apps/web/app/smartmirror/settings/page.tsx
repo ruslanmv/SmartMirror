@@ -287,6 +287,12 @@ function StylistSection() {
       <Row label="Read answers aloud" hint="On an Echo Show inside Alexa, Alexa speaks the answer.">
         <Toggle on={settings.speakReplies} onChange={(v) => update({ speakReplies: v })} />
       </Row>
+      <Row
+        label="Shopping suggestions"
+        hint="When your wardrobe is missing a piece, show where to buy it as a QR code for your phone. Your PC must allow it (SMARTMIRROR_SHOPPING=linkout)."
+      >
+        <Toggle on={settings.shoppingSuggestions} onChange={(v) => update({ shoppingSuggestions: v })} />
+      </Row>
     </Section>
   );
 }

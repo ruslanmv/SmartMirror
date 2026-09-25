@@ -50,6 +50,26 @@
       "required": ["session_id"]
     },
     {
+      "name": "hp.smartmirror.set_create",
+      "required": ["kind"]
+    },
+    {
+      "name": "hp.smartmirror.set_list",
+      "required": []
+    },
+    {
+      "name": "hp.smartmirror.set_delete",
+      "required": ["set_id"]
+    },
+    {
+      "name": "hp.smartmirror.shop_suggest",
+      "required": ["category"]
+    },
+    {
+      "name": "hp.smartmirror.shop_mark_purchased",
+      "required": ["candidate_id"]
+    },
+    {
       "name": "hp.smartmirror.profile_delete",
       "required": ["confirm"]
     },

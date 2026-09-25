@@ -12,7 +12,8 @@ export function SwatchTile({ item }: { item: WardrobeItem }) {
   return (
     <div className="swatch-tile">
       <GarmentSwatch
-        category={item.category}
+        // Subcategory first: canonical categories are broad ("bottom" may be a skirt).
+        category={[item.subcategory, item.category].filter(Boolean).join(" ")}
         color={item.color}
         imageUrl={typeof item.metadata?.image_url === "string" ? item.metadata.image_url : null}
         label={itemName(item)}

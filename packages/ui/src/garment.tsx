@@ -52,7 +52,7 @@ export function garmentShape(category: string | null | undefined): Shape {
   const c = (category || "").toLowerCase();
   if (/(dress|gown|jumpsuit)/.test(c)) return "dress";
   if (/(skirt)/.test(c)) return "skirt";
-  if (/(pant|jean|trouser|short|legging)/.test(c)) return "pants";
+  if (/(pant|jean|trouser|short|legging|bottom)/.test(c)) return "pants";
   if (/(jacket|blazer|coat|cardigan|outer)/.test(c)) return "jacket";
   if (/(shoe|boot|heel|sneaker|sandal|loafer)/.test(c)) return "shoes";
   if (/(bag|clutch|tote|purse)/.test(c)) return "bag";

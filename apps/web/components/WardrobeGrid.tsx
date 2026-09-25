@@ -9,9 +9,9 @@ import { itemName } from "./OutfitCard";
 export const WARDROBE_FILTERS: Array<{ id: string; label: string; match: RegExp | null }> = [
   { id: "all", label: "All", match: null },
   { id: "tops", label: "Tops", match: /top|shirt|blouse|tee|knit|sweater|cami|bodysuit/ },
-  { id: "bottoms", label: "Bottoms", match: /skirt|pant|jean|trouser|short/ },
+  { id: "bottoms", label: "Bottoms", match: /bottom|skirt|pant|jean|trouser|short/ },
   { id: "dresses", label: "Dresses", match: /dress|jumpsuit|gown/ },
-  { id: "outerwear", label: "Outerwear", match: /jacket|blazer|coat|cardigan/ },
+  { id: "outerwear", label: "Outerwear", match: /outerwear|jacket|blazer|coat|cardigan/ },
   { id: "shoes", label: "Shoes", match: /shoe|heel|boot|sneaker|loafer|sandal/ },
   { id: "bags", label: "Bags", match: /bag|clutch|tote|purse/ },
 ];

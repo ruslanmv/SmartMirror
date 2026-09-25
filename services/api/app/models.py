@@ -60,6 +60,7 @@ class Outfit(Base):
     score: Mapped[float] = mapped_column(Float, default=0.0)
     explanation: Mapped[str] = mapped_column(Text, default="")
     item_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    title: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

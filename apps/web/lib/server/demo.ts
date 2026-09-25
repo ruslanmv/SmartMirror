@@ -1,6 +1,15 @@
 import "server-only";
 
-import type { DraftItem, JobStatus, OutfitCandidate, StyleSuggestResult, TryOnCreated, WardrobeItem } from "@/lib/tools";
+import type {
+  DraftItem,
+  JobStatus,
+  OutfitCandidate,
+  OutfitSetView,
+  ShopOffer,
+  StyleSuggestResult,
+  TryOnCreated,
+  WardrobeItem,
+} from "@/lib/tools";
 
 /**
  * Demo backend used when no SmartMirror/OllaBridge backend is configured, so
@@ -231,7 +240,12 @@ export function demoSuggest(prompt: string, limit = 3): StyleSuggestResult {
     };
   });
 
-  return { request_id: `demo_style_${stamp}`, normalized_intent: intent, outfits: result };
+  // Pieces asked for that the wardrobe does not have → what to shop for.
+  const gaps = ["sneakers", "hat", "scarf", "sandals", "belt"]
+    .filter((c) => new RegExp(`\\b${c}`).test(intent.raw.toLowerCase()) && !items.some((i) => i.category === c || i.subcategory === c))
+    .map((c) => ({ slot: c, category: c, query: [intent.colors[0], c].filter(Boolean).join(" ") }));
+
+  return { request_id: `demo_style_${stamp}`, normalized_intent: intent, outfits: result, gaps };
 }
 
 const DEMO_JOB_SECONDS = 9;
@@ -253,4 +267,55 @@ export function demoJob(jobId: string): JobStatus {
     progress,
     result: { stage, demo: true },
   };
+}
+
+// ---- Outfit sets and shopping (demo) ----
+
+const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const demoSets: OutfitSetView[] = [];
+
+export function demoSetCreate(args: Record<string, unknown>): OutfitSetView {
+  const kind = args.kind === "trip" ? "trip" : "week";
+  const days = Math.max(1, Math.min(14, Number(args.days) || (kind === "week" ? 5 : 3)));
+  const prompt = typeof args.prompt === "string" && args.prompt ? args.prompt : kind === "week" ? "office" : "travel";
+  const outfits = demoSuggest(prompt, days).outfits;
+  if (!outfits.length) throw new Error("Not enough pieces to plan outfits yet");
+  const set: OutfitSetView = {
+    id: `demo_set_${Date.now().toString(36)}`,
+    kind,
+    title: kind === "week" ? "This week" : `Trip · ${days} days`,
+    created_at: new Date().toISOString(),
+    looks: Array.from({ length: days }, (_, i) => {
+      const o = outfits[i % outfits.length]!;
+      return { label: kind === "week" ? WEEKDAYS[i % 7]! : `Day ${i + 1}`, item_ids: o.item_ids, explanation: o.explanation };
+    }),
+  };
+  demoSets.unshift(set);
+  if (demoSets.length > 10) demoSets.pop();
+  return set;
+}
+
+export function demoSetList(): OutfitSetView[] {
+  return demoSets;
+}
+
+export function demoSetDelete(args: Record<string, unknown>): { deleted: string } {
+  const i = demoSets.findIndex((s) => s.id === args.set_id);
+  if (i < 0) throw new Error("Set not found");
+  demoSets.splice(i, 1);
+  return { deleted: String(args.set_id) };
+}
+
+export function demoShopSuggest(args: Record<string, unknown>): ShopOffer[] {
+  const query = [args.color, args.category].filter((v) => typeof v === "string" && v).join(" ").slice(0, 120);
+  if (!query) throw new Error("category is required");
+  return [
+    {
+      id: `demo_shop_${Date.now().toString(36)}`,
+      title: `Search Amazon for “${query}”`,
+      url: `https://www.amazon.com/s?${new URLSearchParams({ k: query })}`,
+      provider: "amazon-linkout",
+      query,
+    },
+  ];
 }

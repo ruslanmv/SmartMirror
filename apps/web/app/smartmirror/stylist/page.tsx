@@ -4,6 +4,7 @@ import { Button, Chip, Icon } from "@smartmirror/ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
+import { CompleteTheLook } from "@/components/CompleteTheLook";
 import { OutfitCard } from "@/components/OutfitCard";
 import { StylistNote, groundingFor, type StylistNoteData } from "@/components/StylistNote";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -11,7 +12,7 @@ import { useToast } from "@/components/Toast";
 import { useSpeech } from "@/components/useSpeech";
 import { ApiError, api } from "@/lib/api";
 import { useDevice } from "@/lib/capabilities";
-import { readSettings } from "@/lib/settings";
+import { readSettings, useSettings } from "@/lib/settings";
 import { getOutfitSession, saveLook, saveOutfitSession, type OutfitSession } from "@/lib/storage";
 import { useLooks } from "@/lib/use-local";
 import { speak } from "@/lib/voice";
@@ -34,6 +35,8 @@ function Stylist() {
   const toast = useToast();
   const { capabilities, runtime } = useDevice();
   const looks = useLooks();
+  const { settings } = useSettings();
+  const [planning, setPlanning] = useState<"week" | "trip" | null>(null);
 
   const [prompt, setPrompt] = useState(params.get("prompt") ?? "");
   const [occasion, setOccasion] = useState<string | null>(null);
@@ -73,7 +76,7 @@ function Stylist() {
       let toolError: ApiError | null = null;
       try {
         const [result, items] = await Promise.all([api.suggest(full, 3), api.wardrobe()]);
-        next = { prompt: full, outfits: result.outfits, items };
+        next = { prompt: full, outfits: result.outfits, items, gaps: result.gaps ?? [] };
         setSession(next);
         saveOutfitSession(next);
       } catch (err) {
@@ -127,6 +130,21 @@ function Stylist() {
 
   const savedIds = new Set(looks.map((l) => l.outfit.id));
 
+  // Sets (W-5): a look per day, rotating pieces; saved on the owner's PC.
+  const plan = async (kind: "week" | "trip") => {
+    setPlanning(kind);
+    try {
+      const text = prompt.trim() || occasion || (kind === "week" ? "office" : "travel");
+      const set = await api.planSet(kind, kind === "week" ? 5 : 3, composed(text));
+      router.push(`/smartmirror/looks?set=${encodeURIComponent(set.id)}`);
+    } catch (err) {
+      if (err instanceof ApiError && err.needsPairing) setError(err);
+      else toast(err instanceof ApiError ? err.message : "Could not plan outfits", { tone: "warn" });
+    } finally {
+      setPlanning(null);
+    }
+  };
+
   return (
     <div className="screen">
       <ScreenHeader
@@ -171,6 +189,16 @@ function Stylist() {
           <ChipGroup label="Occasion" options={OCCASIONS} value={occasion} onChange={setOccasion} />
           <ChipGroup label="Mood" options={MOODS} value={mood} onChange={setMood} />
           <ChipGroup label="Colour" options={COLORS} value={color} onChange={setColor} />
+
+          <div className="plan-row" role="group" aria-label="Plan ahead">
+            <span className="chip-group__label">Plan ahead</span>
+            <Button size="sm" icon="looks" busy={planning === "week"} disabled={planning !== null} onClick={() => void plan("week")}>
+              Plan my week
+            </Button>
+            <Button size="sm" icon="looks" busy={planning === "trip"} disabled={planning !== null} onClick={() => void plan("trip")}>
+              Pack for a trip
+            </Button>
+          </div>
 
           {capabilities.alexa && (
             <p className="sm-faint" style={{ fontSize: "0.85rem" }}>
@@ -242,6 +270,7 @@ function Stylist() {
                     }}
                   />
                 ))}
+                {settings.shoppingSuggestions && <CompleteTheLook gaps={session.gaps ?? []} />}
               </>
             ) : note?.toolsDown ? null : session ? (
               <div className="empty">

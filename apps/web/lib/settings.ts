@@ -33,6 +33,8 @@ export interface MirrorSettings {
   stylistModel: string | null;
   /** Read the stylist's answer aloud. */
   speakReplies: boolean;
+  /** Suggest where to buy pieces the wardrobe is missing (needs SMARTMIRROR_SHOPPING=linkout). */
+  shoppingSuggestions: boolean;
 }
 
 export const DEFAULT_SETTINGS: MirrorSettings = {
@@ -49,6 +51,7 @@ export const DEFAULT_SETTINGS: MirrorSettings = {
   idleMinutes: 0,
   stylistModel: null,
   speakReplies: true,
+  shoppingSuggestions: false,
 };
 
 export const ART_STYLES: Array<{ id: ArtStyle; label: string; medium: string }> = [

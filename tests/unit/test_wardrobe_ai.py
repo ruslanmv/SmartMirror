@@ -121,7 +121,10 @@ def test_ingest_review_confirm_flow(store):
         run = db.query(ClassificationRun).filter_by(item_id=draft["id"]).one()
         assert run.model_id == "smartmirror/baseline-color"
 
-    # the stylist now uses it
+    # the stylist now uses it — once there is something to wear on top
+    alone = result(call(client, "hp.smartmirror.style_suggest", {**base, "prompt": "jeans for the weekend"}))
+    assert alone["outfits"] == [] and alone["gaps"][0]["category"] == "top"
+    result(call(client, "hp.smartmirror.wardrobe_add", {**base, "category": "top", "subcategory": "t-shirt", "color": "white"}))
     suggestion = result(call(client, "hp.smartmirror.style_suggest", {**base, "prompt": "jeans for the weekend"}))
     assert any(draft["id"] in o["item_ids"] for o in suggestion["outfits"])
 

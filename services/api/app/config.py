@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     smartmirror_ml_model: str = "patrickjohncyh/fashion-clip"
     smartmirror_ml_device: str = "auto"
 
+    # Shopping (complete the look): "off" (default), "linkout" (retailer search link), "creators".
+    smartmirror_shopping: str = "off"
+    amazon_domain: str = "com"
+    amazon_partner_tag: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

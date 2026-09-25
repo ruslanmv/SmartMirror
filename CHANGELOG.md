@@ -5,6 +5,11 @@ All notable changes to SmartMirror will be documented here.
 ## [Unreleased]
 
 ### Added
+- Stylist v2 on the owner's PC: complete outfits (base, layer, shoes, bag) scored by
+  occasion, colour and harmony, with titles and explanations that cite only owned pieces;
+  "Plan my week" / "Pack for a trip" saved as outfit plans (shown in Looks); "Complete
+  the look" names missing pieces and, when enabled (`SMARTMIRROR_SHOPPING=linkout` plus
+  Settings → Shopping suggestions), shows an Amazon search as a QR for the phone.
 - Pairing with OllaBridge like the 3D Avatar Chatbot: TV-style "show a code"
   (code + QR, confirm on the phone, `/device/start` + `/device/poll`) and a
   "type a code" fallback (`/pair`), SmartMirror client identity, sealed pending

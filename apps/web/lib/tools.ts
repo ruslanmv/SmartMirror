@@ -19,6 +19,11 @@ export const TOOLS = {
   wardrobeReview: "hp.smartmirror.wardrobe_review",
   wardrobeConfirm: "hp.smartmirror.wardrobe_confirm",
   wardrobeRemove: "hp.smartmirror.wardrobe_remove",
+  setCreate: "hp.smartmirror.set_create",
+  setList: "hp.smartmirror.set_list",
+  setDelete: "hp.smartmirror.set_delete",
+  shopSuggest: "hp.smartmirror.shop_suggest",
+  shopMarkPurchased: "hp.smartmirror.shop_mark_purchased",
   captureSessionCreate: "hp.smartmirror.capture_session_create",
   captureSessionComplete: "hp.smartmirror.capture_session_complete",
   captureSessionGet: "hp.smartmirror.capture_session_get",
@@ -66,6 +71,30 @@ export interface StyleSuggestResult {
   request_id: string;
   normalized_intent: Record<string, unknown>;
   outfits: OutfitCandidate[];
+  /** What the wardrobe could not fill for this request (stylist v2). */
+  gaps?: WardrobeGap[];
+}
+
+export interface WardrobeGap {
+  slot: string;
+  category: string;
+  query: string;
+}
+
+export interface OutfitSetView {
+  id: string;
+  kind: "week" | "trip" | "capsule";
+  title: string;
+  created_at: string | null;
+  looks: { label: string; item_ids: string[]; explanation: string }[];
+}
+
+export interface ShopOffer {
+  id: string;
+  title: string;
+  url: string;
+  provider: string;
+  query: string;
 }
 
 export interface TryOnCreated {

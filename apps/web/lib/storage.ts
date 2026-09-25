@@ -1,6 +1,6 @@
 "use client";
 
-import type { OutfitCandidate, WardrobeItem } from "./tools";
+import type { OutfitCandidate, WardrobeGap, WardrobeItem } from "./tools";
 
 /**
  * Device-local storage. Body captures stay on this screen (and are only sent
@@ -35,6 +35,8 @@ export interface OutfitSession {
   prompt: string;
   outfits: OutfitCandidate[];
   items: WardrobeItem[];
+  /** Pieces the wardrobe could not supply for this request. */
+  gaps?: WardrobeGap[];
 }
 
 function read<T>(storage: Storage | undefined, key: string): T | null {

@@ -544,3 +544,25 @@ html[data-dpad="true"] .sm-chip:focus-visible { transform: scale(1.06); }
   .draft { grid-template-columns: 6rem minmax(0, 1fr); }
   .draft__photo { width: 6rem; height: 7.5rem; }
 }
+
+/* ================= Outfit plans & complete the look ================= */
+
+.plan-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.plans { display: grid; gap: 1rem; margin-bottom: 1.8rem; }
+.plans__saved { margin-bottom: 1rem; }
+.plan-card { display: grid; gap: 0.9rem; padding: 1.1rem 1.25rem; }
+.plan-card__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.plan-card__days { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 0.8rem; }
+.plan-day { display: grid; gap: 0.45rem; justify-items: center; padding: 0.7rem; border-radius: var(--sm-radius); background: rgba(255, 255, 255, 0.03); }
+.plan-day__label { font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sm-text-2); }
+.plan-day .look-card__collage { width: 100%; }
+.plan-day__missing { aspect-ratio: 1; border-radius: 0.4rem; border: 1px dashed var(--sm-border); }
+
+.complete-look { display: grid; gap: 0.7rem; padding: 1.1rem 1.25rem; }
+.complete-look__intro { font-size: 0.9rem; }
+.complete-look__list { display: grid; gap: 0.9rem; }
+.complete-look__row { display: grid; gap: 0.6rem; justify-items: start; }
+.complete-look__what { display: flex; align-items: center; gap: 0.5rem; font-size: 1.05rem; text-transform: capitalize; }
+.complete-look__offer { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: 1rem; align-items: center; }
+.complete-look__offer .qr { width: 7rem; height: 7rem; padding: 0.4rem; border-radius: 0.5rem; background: #f5efe4; }
+.complete-look__title { font-weight: 500; margin-bottom: 0.25rem; }

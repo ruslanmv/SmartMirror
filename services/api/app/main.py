@@ -97,7 +97,7 @@ def style_request(body: StyleSuggestIn, db: Session = Depends(get_db)) -> StyleS
         request_id=req.id,
         normalized_intent=req.normalized_intent,
         outfits=[
-            OutfitCandidate(id=o.id, item_ids=o.item_ids, score=o.score, explanation=o.explanation)
+            OutfitCandidate(id=o.id, item_ids=o.item_ids, score=o.score, explanation=o.explanation, title=o.title)
             for o in outfits
         ],
     )

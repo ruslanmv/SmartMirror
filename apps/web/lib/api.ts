@@ -9,6 +9,8 @@ import {
   type NewWardrobeItem,
   type StyleSuggestResult,
   type DraftItem,
+  type OutfitSetView,
+  type ShopOffer,
   type TryOnCreated,
   type WardrobeItem,
 } from "./tools";
@@ -75,6 +77,14 @@ export const api = {
   confirmGarment: (itemId: string, changes: { category?: string; subcategory?: string; color?: string; name?: string }) =>
     callTool<WardrobeItem>(TOOLS.wardrobeConfirm, { item_id: itemId, ...changes }),
   removeGarment: (itemId: string) => callTool<{ removed: string }>(TOOLS.wardrobeRemove, { item_id: itemId }),
+  planSet: (kind: "week" | "trip", days: number, prompt: string) =>
+    callTool<OutfitSetView>(TOOLS.setCreate, { kind, days, prompt }),
+  sets: () => callTool<OutfitSetView[]>(TOOLS.setList),
+  deleteSet: (setId: string) => callTool<{ deleted: string }>(TOOLS.setDelete, { set_id: setId }),
+  shopSuggest: (category: string, color?: string | null) =>
+    callTool<ShopOffer[]>(TOOLS.shopSuggest, { category, ...(color ? { color } : {}) }),
+  markPurchased: (candidateId: string) =>
+    callTool<{ id: string; purchased: boolean }>(TOOLS.shopMarkPurchased, { candidate_id: candidateId }),
   suggest: (prompt: string, limit = 3) => callTool<StyleSuggestResult>(TOOLS.styleSuggest, { prompt, limit }),
   createTryOn: (outfitId: string, bodyCaptureRef: string, instruction = "") =>
     callTool<TryOnCreated>(TOOLS.tryonCreate, { outfit_id: outfitId, body_capture_ref: bodyCaptureRef, instruction }),

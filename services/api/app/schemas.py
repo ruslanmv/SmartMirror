@@ -31,6 +31,7 @@ class OutfitCandidate(BaseModel):
     item_ids: list[str]
     score: float
     explanation: str
+    title: str | None = None
 
 
 class StyleSuggestOut(BaseModel):
