@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import os
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -23,6 +25,15 @@ from .schemas import (
     WardrobeItemCreate,
     WardrobeItemOut,
 )
+
+# Tool calls are logged with their trace id (smartmirror.tools); uvicorn only
+# configures its own loggers, so give ours a handler.
+_log = logging.getLogger("smartmirror")
+if not _log.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s %(message)s"))
+    _log.addHandler(_handler)
+    _log.setLevel(os.environ.get("SMARTMIRROR_LOG_LEVEL", "INFO"))
 
 app = FastAPI(
     title="SmartMirror API",

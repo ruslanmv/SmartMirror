@@ -122,3 +122,15 @@ export function getOutfitSession(): OutfitSession | null {
 export function saveOutfitSession(value: OutfitSession) {
   write(session(), OUTFITS_KEY, value);
 }
+
+/** Forget every photo and look kept on this screen ("Delete my data"). */
+export function clearLocalData() {
+  try {
+    local()?.removeItem(CAPTURE_KEY);
+    local()?.removeItem(LOOKS_KEY);
+    session()?.removeItem(OUTFITS_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+  emit();
+}

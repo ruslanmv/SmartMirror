@@ -233,6 +233,7 @@ function Stylist() {
                 </div>
                 <p className="empty__title">{error.needsPairing ? "Pair this screen first" : "Couldn’t reach your stylist"}</p>
                 <p>{error.message}</p>
+                {error.reference && <p className="sm-faint">Reference {error.reference}</p>}
                 {error.needsPairing ? (
                   <Button variant="primary" onClick={() => router.push("/smartmirror/pairing")}>
                     Pair screen

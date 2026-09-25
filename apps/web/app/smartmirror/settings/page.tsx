@@ -10,6 +10,7 @@ import { useToast } from "@/components/Toast";
 import { ApiError, api } from "@/lib/api";
 import { useDevice } from "@/lib/capabilities";
 import { ART_STYLES, FRAMES, resetSettings, usePortraitPhoto, useSettings, writePortraitPhoto, type PaintingSource } from "@/lib/settings";
+import { clearLocalData } from "@/lib/storage";
 import { useCapture, useLooks } from "@/lib/use-local";
 
 import "./settings.css";
@@ -194,6 +195,8 @@ export default function SettingsPage() {
             </Row>
           </Section>
 
+          <PrivacySection />
+
           <div className="settings__footer">
             <Button
               variant="ghost"
@@ -292,6 +295,65 @@ function StylistSection() {
         hint="When your wardrobe is missing a piece, show where to buy it as a QR code for your phone. Your PC must allow it (SMARTMIRROR_SHOPPING=linkout)."
       >
         <Toggle on={settings.shoppingSuggestions} onChange={(v) => update({ shoppingSuggestions: v })} />
+      </Row>
+    </Section>
+  );
+}
+
+/** Delete my data (SM-8): the PC's copy through profile_delete, then this screen's own. */
+function PrivacySection() {
+  const toast = useToast();
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(false), 8000);
+    return () => clearTimeout(id);
+  }, [armed]);
+
+  const erase = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.deleteMyData();
+      clearLocalData();
+      writePortraitPhoto(null);
+      toast("Your wardrobe, photos and looks were deleted");
+      setArmed(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? `${err.message}${err.reference ? ` (reference ${err.reference})` : ""}` : "Could not delete your data");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title="Privacy" hint="Photos and your wardrobe live on your HomePilot PC; this screen keeps only recent looks.">
+      <Row
+        label="Delete my data"
+        hint={
+          error ??
+          (armed
+            ? "This removes your wardrobe, photos, try-ons, outfit plans and history from your PC and this screen. It cannot be undone."
+            : "Removes everything SmartMirror stores about you. Pairing and display settings stay.")
+        }
+      >
+        {armed ? (
+          <>
+            <Button variant="primary" icon="trash" busy={busy} onClick={() => void erase()} data-autofocus>
+              Delete everything
+            </Button>
+            <Button variant="ghost" onClick={() => setArmed(false)} disabled={busy}>
+              Cancel
+            </Button>
+          </>
+        ) : (
+          <Button icon="trash" onClick={() => setArmed(true)}>
+            Delete my data…
+          </Button>
+        )}
       </Row>
     </Section>
   );

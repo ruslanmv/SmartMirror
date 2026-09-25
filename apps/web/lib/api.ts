@@ -20,8 +20,14 @@ export class ApiError extends Error {
     message: string,
     readonly status: number,
     readonly code: string,
+    /** Names this call in the logs of every hop (BFF, HomePilot, SmartMirror). */
+    readonly traceId?: string,
   ) {
     super(message);
+  }
+  /** Short form of the trace id to read out to support. */
+  get reference(): string | null {
+    return this.traceId ? this.traceId.slice(0, 8) : null;
   }
   get needsPairing() {
     return this.code === "pairing_required";
@@ -56,8 +62,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new ApiError("Network unavailable", 0, "offline");
   }
-  const body = (await res.json().catch(() => ({}))) as { result?: T; error?: string; code?: string };
-  if (!res.ok) throw new ApiError(body.error ?? `Request failed (${res.status})`, res.status, body.code ?? "error");
+  const body = (await res.json().catch(() => ({}))) as { result?: T; error?: string; code?: string; traceId?: string };
+  if (!res.ok) throw new ApiError(body.error ?? `Request failed (${res.status})`, res.status, body.code ?? "error", body.traceId);
   return (body.result ?? body) as T;
 }
 
@@ -85,6 +91,8 @@ export const api = {
     callTool<ShopOffer[]>(TOOLS.shopSuggest, { category, ...(color ? { color } : {}) }),
   markPurchased: (candidateId: string) =>
     callTool<{ id: string; purchased: boolean }>(TOOLS.shopMarkPurchased, { candidate_id: candidateId }),
+  /** Everything SmartMirror keeps for this profile on the owner's PC. */
+  deleteMyData: () => callTool<{ deleted: Record<string, number> }>(TOOLS.profileDelete, { confirm: "DELETE" }),
   suggest: (prompt: string, limit = 3) => callTool<StyleSuggestResult>(TOOLS.styleSuggest, { prompt, limit }),
   createTryOn: (outfitId: string, bodyCaptureRef: string, instruction = "") =>
     callTool<TryOnCreated>(TOOLS.tryonCreate, { outfit_id: outfitId, body_capture_ref: bodyCaptureRef, instruction }),

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -19,12 +21,14 @@ from services.api.app.models import (
     OutfitSetMember,
     WardrobeItem,
 )
-from smartmirror import media, shopping, wardrobe
+from smartmirror import hardening, media, shopping, wardrobe
 from smartmirror.privacy import delete_profile_data, record
 from smartmirror.storage import get_store
 from smartmirror.stylist import engine
 from smartmirror.stylist.service import owned, suggest
 from smartmirror.tryon.service import create_tryon_job
+
+log = logging.getLogger("smartmirror.tools")
 
 router = APIRouter()
 
@@ -546,8 +550,14 @@ async def rpc(request: Request, db: Session = Depends(get_db)) -> JSONResponse:
                 {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": f"Unknown tool: {name}"}},
                 status_code=404,
             )
+        # Reserved `_meta` (trace id, idempotency key) never reaches a handler.
+        arguments, trace_id, idem_key = hardening.split_meta(arguments if isinstance(arguments, dict) else {})
+        profile = str(arguments.get("profile_id") or "default")
+        started = time.monotonic()
+        meta = {"trace_id": trace_id} if trace_id else {}
         try:
-            result = await spec["handler"](arguments, db)
+            result = await hardening.run(name, profile, idem_key, lambda: spec["handler"](arguments, db))
+            log.info("tool=%s trace=%s ok=true ms=%d", name, trace_id or "-", (time.monotonic() - started) * 1000)
             return JSONResponse(
                 {
                     "jsonrpc": "2.0",
@@ -555,13 +565,16 @@ async def rpc(request: Request, db: Session = Depends(get_db)) -> JSONResponse:
                     "result": {
                         "content": [{"type": "text", "text": json.dumps(result)}],
                         "structuredContent": result,
+                        **({"_meta": meta} if meta else {}),
                     },
                 }
             )
         except Exception as exc:
+            db.rollback()
+            log.info("tool=%s trace=%s ok=false ms=%d error=%s", name, trace_id or "-", (time.monotonic() - started) * 1000, str(exc)[:120])
             return JSONResponse(
-                {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32000, "message": str(exc)}},
-                status_code=400,
+                {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32000, "message": str(exc), **({"data": meta} if meta else {})}},
+                status_code=429 if isinstance(exc, hardening.RateLimited) else 400,
             )
 
     return JSONResponse(

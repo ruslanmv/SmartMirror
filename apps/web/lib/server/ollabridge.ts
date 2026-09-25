@@ -17,7 +17,13 @@ import { USER_AGENT } from "./pairing";
  * POST /v1/media/upload.
  */
 
-export type UpstreamCode = "upstream" | "node_offline" | "tool_not_allowed" | "capability_unavailable" | "timeout";
+export type UpstreamCode =
+  | "upstream"
+  | "node_offline"
+  | "tool_not_allowed"
+  | "capability_unavailable"
+  | "timeout"
+  | "rate_limited";
 
 export class UpstreamError extends Error {
   constructor(
@@ -78,6 +84,16 @@ export function jobError(text: string): UpstreamError {
   if (/Unsupported operation: homepilot\.mirror/.test(text)) {
     return new UpstreamError(
       "OllaBridge on your PC does not relay SmartMirror requests yet. Update it and set HOMEPILOT_MIRROR_RELAY_ENABLED=true.",
+      503,
+      "capability_unavailable",
+    );
+  }
+  if (/RATE_LIMITED/.test(text)) {
+    return new UpstreamError("Too many requests to your HomePilot. Wait a minute and try again.", 429, "rate_limited");
+  }
+  if (/CAPABILITY_UNAVAILABLE: shopping/.test(text)) {
+    return new UpstreamError(
+      "Shopping suggestions are off on your PC. Set SMARTMIRROR_SHOPPING=linkout for SmartMirror to turn them on.",
       503,
       "capability_unavailable",
     );
@@ -214,7 +230,15 @@ export class OllaBridgeClient {
       config.mcpOperation === AGENTIC_OPERATION
         ? { tool, arguments: args }
         : { server: config.mcpServer, tool, arguments: args }; // legacy operation shape
-    const created = await this.createJob(nodeId, config.mcpOperation, params);
+    // A call carrying an idempotency key is safe to submit twice: the PC
+    // returns the first result. Retry once when the submit itself was lost.
+    const created = await this.createJob(nodeId, config.mcpOperation, params).catch(async (err: unknown) => {
+      const meta = args._meta as { idempotency_key?: string } | undefined;
+      const transient = err instanceof UpstreamError && (err.code === "timeout" || (err.code === "upstream" && err.status >= 502));
+      if (!meta?.idempotency_key || !transient) throw err;
+      await new Promise((r) => setTimeout(r, 400));
+      return this.createJob(nodeId, config.mcpOperation, params);
+    });
     const jobId = created.job_id ?? created.id;
     if (!jobId) throw new UpstreamError("OllaBridge did not return a job id", 502);
 

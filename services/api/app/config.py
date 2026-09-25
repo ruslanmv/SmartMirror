@@ -49,6 +49,8 @@ class Settings(BaseSettings):
 
     # Shopping (complete the look): "off" (default), "linkout" (retailer search link), "creators".
     smartmirror_shopping: str = "off"
+    # Per-profile tool rate limits (smartmirror/hardening.py).
+    smartmirror_rate_limits: bool = True
     amazon_domain: str = "com"
     amazon_partner_tag: str = ""
 

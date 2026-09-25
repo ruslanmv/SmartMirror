@@ -5,6 +5,10 @@ All notable changes to SmartMirror will be documented here.
 ## [Unreleased]
 
 ### Added
+- Hardening: one trace id per tool call across every hop (logged by the BFF and the
+  SmartMirror API, shown as "Reference …" on errors), idempotency keys so a lost submit
+  is retried safely, per-profile rate limits on the PC and per-screen limits in the BFF,
+  Settings → Privacy → "Delete my data", and `scripts/e2e-chain` (full-chain browser tests).
 - Stylist v2 on the owner's PC: complete outfits (base, layer, shoes, bag) scored by
   occasion, colour and harmony, with titles and explanations that cite only owned pieces;
   "Plan my week" / "Pack for a trip" saved as outfit plans (shown in Looks); "Complete

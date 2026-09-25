@@ -1,6 +1,15 @@
 # Upgrade plan v2: SmartMirror × HomePilot × OllaBridge
 
-Status: **Approved plan, ready to implement** · Date: 24 September 2026
+Status: **Implemented through M5** on feature branches (below) · Plan date: 24 September 2026 · Updated: 25 September 2026
+
+| Repository | Branch | Contents |
+|---|---|---|
+| ruslanmv/ollabridge-cloud | `feature/smartmirror-client` | OB-1, OB-3, OB-2, OB-4 |
+| ruslanmv/ollabridge | `feature/homepilot-mirror-relay` | OL-1, OL-3 |
+| ruslanmv/HomePilot | `feature/mirror-agentic-invoke` (from `master`) | HP-1, HP-7, HP-5, HP-2, HP-3 |
+| ruslanmv/SmartMirror | `claude/upbeat-maxwell-sky163` | P-1, W-0…W-7, SM-1…SM-8, M5 hardening, `scripts/e2e-chain` |
+
+Not needed after all: OL-2, HP-4, HP-6 (reasons in §7). Every platform change is additive and behind a flag that defaults to off.
 Supersedes the v1 drafts of this file (see git history).
 
 | Repository | Role | Baseline |
@@ -339,13 +348,13 @@ M0 Foundations ──▶ M1b Remote tools ──▶ M2 Real try-on ──┴─�
 
 | Milestone | PRs (in order) | Exit criteria |
 |---|---|---|
-| **M1a Pair + chat** *(start here)* | OB-1 → OB-3 → OB-2 (cloud); P-1, W-0, W-7 (SmartMirror) | On Vercel, the Echo simulator pairs via the TV flow. The OllaBridge dashboard shows **"SmartMirror"** (not "My PC"). "What should I wear tonight?" is answered on screen and aloud by the owner's HomePilot **Stylist** persona. No token reaches the browser. The 3D Avatar still pairs and chats unchanged. |
+| **M1a Pair + chat** ✅ | OB-1 → OB-3 → OB-2 (cloud); P-1, W-0, W-7 (SmartMirror) | On Vercel, the Echo simulator pairs via the TV flow. The OllaBridge dashboard shows **"SmartMirror"** (not "My PC"). "What should I wear tonight?" is answered on screen and aloud by the owner's HomePilot **Stylist** persona. No token reaches the browser. The 3D Avatar still pairs and chats unchanged. |
 | **M0 Foundations** ✅ | SM-1 tables + migration `0002_foundations` (up/down tested), media store (local folder or MinIO/S3), SM-8 retention sweep + delete-all (`DELETE /v1/profile/data`, tool `hp.smartmirror.profile_delete`, confirm required) + audit events without content, fixtures in `packages/contracts/v1` | done; tests isolate their DB (`tests/conftest.py`) |
-| **M1b Remote tools** | OL-1 + OL-3 (Local), HP-1 + HP-5 + HP-7 (HomePilot), OB-4 (optional), SM-4 (existing 5 tools), W-1; cloud `HOMEPILOT_MIRROR_ENABLED=true` | the wardrobe lists and suggestions come from the real home PC; a disallowed tool is rejected; the stylist answer cites owned items; with all flags off, every repo behaves as before |
+| **M1b Remote tools** ✅ | OL-1 + OL-3 (Local), HP-1 + HP-5 + HP-7 (HomePilot), OB-4 (optional), SM-4 (existing 5 tools), W-1; cloud `HOMEPILOT_MIRROR_ENABLED=true` | the wardrobe lists and suggestions come from the real home PC; a disallowed tool is rejected; the stylist answer cites owned items; with all flags off, every repo behaves as before |
 | **M2 Real try-on** ✅ | HP-2 + HP-3 (`images.edit`, checked inputs), SM-2 media ingest (EXIF stripped, downscaled, deduped, TTL), SM-6 try-on jobs (HomePilot provider, cloud fallback), W-3 phone hand-off across devices (sealed single-session ticket), W-4 real preview, disclaimer, before/after. **Not needed:** OL-2 (photos travel inside the relayed tool call to the owner's PC and never sit in the cloud media cache) and HP-4 (SmartMirror tracks try-on jobs itself; a HomePilot restart surfaces as `NODE_RESTARTED`). | done; verified end-to-end with real HomePilot node jobs (ComfyUI render faked) |
 | **M3 Wardrobe AI** ✅ | SM-3 classifier on the PC: colour-only baseline always (dominant colour ignoring the background, solid/patterned), optional zero-shot fashion model via `pip install smartmirror[ml]` (default FashionCLIP, CUDA auto) for category/sub-category; confidence gate (≥ 0.6 and margin ≥ 0.15) sends unsure fields to review; `python -m smartmirror.ml.benchmark` measures speed/accuracy on the owner's photos. SM-4 tools `wardrobe_ingest/review/confirm/remove`; drafts never reach the stylist. W-2 Add clothes screen + phone closet scan (garment tickets, many photos). | done; the ≥ 85 % accuracy target needs the ML model and a household set — measure with the benchmark |
 | **M4 Sets + shopping** ✅ | SM-5 stylist v2 (`smartmirror/stylist/engine.py`: complete outfits by slot — dress or top + bottom, a layer when cold/office/evening, shoes, a bag for the evening; occasion and colour scoring, colour harmony, distinct anchors; titles; explanations cite only the chosen pieces; gaps), migration `0003_outfit_titles`; tools `set_create/list/delete` (week = weekday labels, trip = "Day N", anchors rotate before repeating) and `shop_suggest`/`shop_mark_purchased`; SM-7 link-out only (`SMARTMIRROR_SHOPPING=linkout`, optional `AMAZON_PARTNER_TAG`, off by default → `CAPABILITY_UNAVAILABLE`). W-5 "Plan my week" / "Pack for a trip" and Outfit plans in Looks; W-6 "Complete the look" (Settings → Stylist → Shopping suggestions, off by default) with a QR for the phone and "I bought it". **Not needed:** HP-6 — HomePilot `master` has no routines engine (it lives on the meetingsense branch); a morning outfit can be scheduled later without a HomePilot change. | done; verified end-to-end through the real node chain |
-| **M5 Hardening** | idempotency keys, rate limits, retention, trace ids across all hops, Echo Show 21 device probe | the architecture report's "definition of success" passes end-to-end |
+| **M5 Hardening** ✅ | A reserved `_meta` tool argument carries a **trace id** and an **idempotency key** unchanged through OllaBridge Cloud, OllaBridge Local and HomePilot `agentic.invoke`. The BFF and SmartMirror log each call with that id, and errors return it to the screen as "Reference …". Creating tools (`wardrobe_add/ingest`, `tryon_create`, `capture_upload`, `capture_session_create`, `set_create`, `shop_suggest`) run once per key, so the BFF safely retries a lost submit once. **Rate limits**: per profile on the PC (`smartmirror/hardening.py`, `RATE_LIMITED` → 429) and per screen in `/api/tools`. **Retention**: the M0 sweep, plus Settings → Privacy → "Delete my data" (`profile_delete`; the owner must allow it in `HOMEPILOT_MIRROR_ALLOWED_TOOLS`). **E2E**: `scripts/e2e-chain` runs the whole chain with real HomePilot and OllaBridge Local code. **Device probe**: `/smartmirror/camera-test`; a run on a physical Echo Show 21 is still to do. | done; the chain suites pass (pairing, tools, persona, allow-list denial, hand-off, try-on, closet scan, plans, shopping) |
 
 **Parallelism:**
 - M1a needs nothing unmerged elsewhere.

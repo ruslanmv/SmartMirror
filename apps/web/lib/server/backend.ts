@@ -40,6 +40,17 @@ export class BffError extends Error {
   }
 }
 
+/** Errors leaving callToolAs carry the call's trace id, shown to the user for support. */
+function withTrace(err: unknown, traceId: string): unknown {
+  if (err && typeof err === "object") (err as { traceId?: string }).traceId = traceId;
+  return err;
+}
+
+function traceOf(err: unknown): { traceId?: string } {
+  const id = err && typeof err === "object" ? (err as { traceId?: unknown }).traceId : undefined;
+  return typeof id === "string" ? { traceId: id } : {};
+}
+
 export function ollabridgeToken(config: ServerConfig, session: SessionData | null): string {
   if (session?.kind === "device" && session.deviceToken) return session.deviceToken;
   if (session?.kind === "owner" && config.ollabridge.ownerToken) return config.ollabridge.ownerToken;
@@ -86,8 +97,28 @@ export async function callTool(tool: string, rawArgs: unknown): Promise<unknown>
  * request carries a sealed, single-session ticket instead of a cookie.
  */
 export async function callToolAs(session: SessionData | null, tool: string, rawArgs: unknown): Promise<unknown> {
+  // One id names this call on every hop: BFF → OllaBridge → HomePilot → SmartMirror.
+  const traceId = crypto.randomUUID();
+  const started = Date.now();
+  try {
+    const result = await dispatch(session, tool, rawArgs, traceId);
+    logCall(tool, traceId, started, "ok");
+    return result;
+  } catch (err) {
+    logCall(tool, traceId, started, err instanceof BffError || err instanceof UpstreamError ? err.code : "error");
+    throw withTrace(err, traceId);
+  }
+}
+
+function logCall(tool: string, trace: string, started: number, outcome: string) {
+  if (process.env.NODE_ENV === "test") return;
+  console.info(JSON.stringify({ evt: "tool", tool, trace, ms: Date.now() - started, outcome }));
+}
+
+async function dispatch(session: SessionData | null, tool: string, rawArgs: unknown, traceId: string): Promise<unknown> {
   const config = getConfig();
-  const args = validateToolCall(tool, rawArgs);
+  // `_meta` is reserved for the BFF; a browser cannot set it.
+  const { _meta: _ignored, ...args } = validateToolCall(tool, rawArgs);
   if (pairingRequired(config) && !session) throw new BffError("Pair this screen to continue", 401, "pairing_required");
   // The profile is decided server-side; a browser cannot address another profile.
   const scoped = { ...args, profile_id: config.profileId };
@@ -97,14 +128,19 @@ export async function callToolAs(session: SessionData | null, tool: string, rawA
     case "demo":
       return callDemo(tool, scoped);
     case "direct":
-      return callDirect(config, tool, scoped);
+      return callDirect(config, tool, withMeta(scoped, traceId));
     case "ollabridge": {
       const client = new OllaBridgeClient(config.ollabridge.baseUrl!, ollabridgeToken(config, session));
       const node = await client.resolveNode(session?.nodeId ?? config.ollabridge.nodeId, session?.deviceId);
       if (!session?.ticket) await rememberNode(session, node.node_id);
-      return client.callTool(config.ollabridge, node.node_id, tool, scoped);
+      return client.callTool(config.ollabridge, node.node_id, tool, withMeta(scoped, traceId));
     }
   }
+}
+
+/** Trace id plus an idempotency key, so a retried submit never creates twice. */
+function withMeta(args: Record<string, unknown>, traceId: string): Record<string, unknown> {
+  return { ...args, _meta: { trace_id: traceId, idempotency_key: crypto.randomUUID() } };
 }
 
 function callDemo(tool: string, args: Record<string, unknown>): unknown {
@@ -211,17 +247,17 @@ export async function health(): Promise<HealthReport> {
 
 export function toErrorResponse(err: unknown): Response {
   if (err instanceof BffError) {
-    return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    return Response.json({ error: err.message, code: err.code, ...traceOf(err) }, { status: err.status });
   }
   if (err instanceof UpstreamError) {
-    return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    return Response.json({ error: err.message, code: err.code, ...traceOf(err) }, { status: err.status });
   }
   if (err instanceof SessionConfigError) {
     return Response.json({ error: err.message, code: "misconfigured" }, { status: 500 });
   }
   const message = err instanceof Error ? err.message : "Unexpected error";
   // Validation errors from the demo backend (e.g. "Job not found").
-  if (/required|not found/i.test(message)) return Response.json({ error: message, code: "bad_request" }, { status: 400 });
+  if (/required|not found/i.test(message)) return Response.json({ error: message, code: "bad_request", ...traceOf(err) }, { status: 400 });
   console.error("[smartmirror-bff]", err);
-  return Response.json({ error: "Unexpected server error", code: "internal" }, { status: 500 });
+  return Response.json({ error: "Unexpected server error", code: "internal", ...traceOf(err) }, { status: 500 });
 }

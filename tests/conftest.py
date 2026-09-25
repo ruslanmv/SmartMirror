@@ -20,3 +20,14 @@ from services.api.app import models  # noqa: F401
 from services.api.app.database import Base, engine
 
 Base.metadata.create_all(bind=engine)
+
+
+import pytest
+
+from smartmirror import hardening
+
+
+@pytest.fixture(autouse=True)
+def _fresh_hardening_state():
+    hardening.reset()
+    yield
