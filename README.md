@@ -48,15 +48,14 @@ pages run in three places:
                          (apps/echo-show)           (integrations/alexa)
 ```
 
-Every deployment also serves an Echo Show 21 simulator at
-`/simulator/echo-show-21`, with live toggles for touch, camera, microphone,
-Alexa, D-pad and OllaBridge/HomePilot connectivity. Vercel hosts only the UI
-and a thin BFF; wardrobe data, photos and AI jobs stay on your HomePilot. See
-`apps/web/README.md` and `docs/adr/0004-web-first-ui.md`.
+A Vercel deployment opens straight into the app and pairs with your
+HomePilot through OllaBridge Cloud (`/smartmirror/pairing`). Vercel hosts only
+the UI and a thin BFF; wardrobe data, photos and AI jobs stay on your
+HomePilot. See `apps/web/README.md` and `docs/adr/0004-web-first-ui.md`.
 
 ```bash
 pnpm install
-pnpm dev        # http://localhost:3000/simulator/echo-show-21
+pnpm dev        # http://localhost:3000 (demo backend with a sample wardrobe)
 ```
 
 ## Repository status

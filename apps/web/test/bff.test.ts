@@ -48,13 +48,27 @@ describe("tool allow-list", () => {
 });
 
 describe("backend mode detection", () => {
-  it("defaults to demo and needs no pairing", () => {
+  it("defaults to demo locally and needs no pairing", () => {
     vi.stubEnv("SMARTMIRROR_BACKEND", "");
     vi.stubEnv("OLLABRIDGE_BASE_URL", "");
     vi.stubEnv("SMARTMIRROR_API_URL", "");
+    vi.stubEnv("VERCEL", "");
     const config = getConfig();
     expect(config.mode).toBe("demo");
     expect(pairingRequired(config)).toBe(false);
+  });
+
+  it("runs the real app on Vercel: pair with OllaBridge Cloud unless demo is asked for", () => {
+    vi.stubEnv("SMARTMIRROR_BACKEND", "");
+    vi.stubEnv("OLLABRIDGE_BASE_URL", "");
+    vi.stubEnv("SMARTMIRROR_API_URL", "");
+    vi.stubEnv("VERCEL", "1");
+    const config = getConfig();
+    expect(config.mode).toBe("ollabridge");
+    expect(config.ollabridge.baseUrl).toBe("https://app.ollabridge.com");
+    expect(pairingRequired(config)).toBe(true);
+    vi.stubEnv("SMARTMIRROR_BACKEND", "demo");
+    expect(getConfig().mode).toBe("demo");
   });
 
   it("requires pairing for ollabridge", () => {

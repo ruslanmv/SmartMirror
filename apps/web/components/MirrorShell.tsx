@@ -122,7 +122,7 @@ function IdlePortrait() {
 }
 
 function TopBar() {
-  const { capabilities, health, simulated, profileId } = useDevice();
+  const { capabilities, health } = useDevice();
   const online = capabilities.ollabridgeOnline && capabilities.homepilotOnline;
   const cameraOn = useCameraActive();
   return (
@@ -132,7 +132,6 @@ function TopBar() {
       </Link>
       <div className="mirror-top__right">
         <div className="mirror-top__status">
-          {simulated && profileId && <Badge tone="accent">Simulator · {profileId.replace(/-/g, " ")}</Badge>}
           {cameraOn && (
             <span className="camera-on" role="status" title="The camera is streaming on this screen only; nothing is recorded.">
               <span className="camera-on__dot" aria-hidden="true" /> Camera on
@@ -153,6 +152,7 @@ function TopBar() {
 
 function ConnectivityBanner() {
   const { capabilities, health } = useDevice();
+  const pathname = usePathname();
   if (!capabilities.ollabridgeOnline) {
     return (
       <div className="banner" role="alert">
@@ -173,7 +173,8 @@ function ConnectivityBanner() {
       </div>
     );
   }
-  if (health?.pairingRequired && !health.paired) {
+  // Not on the pairing screen itself: it already is the call to action.
+  if (health?.pairingRequired && !health.paired && !pathname.startsWith("/smartmirror/pairing")) {
     return (
       <div className="banner banner--info" role="status">
         <Icon name="link" />

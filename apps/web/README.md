@@ -6,12 +6,9 @@ Vercel. The same pages run in a browser, inside the Echo Show shell
 
 | Route | What it is |
 |---|---|
-| `/` | Hub: run modes, simulator profiles, data boundary |
+| `/` | Redirects to `/smartmirror` (old `/simulator/*` links do too) |
 | `/smartmirror` | The product UI (home, `stylist`, `wardrobe`, `capture`, `tryon`, `looks`, `pairing`) |
-| `/simulator/echo-show-21` | 1920×1080 Echo Show 21 simulation: D-pad only, no camera/mic |
-| `/simulator/echo-show-21-experimental` | Same screen with touch, native camera and microphone |
-| `/simulator/echo-show-21-alexa` | The UI as launched by the Alexa skill (Alexa HTML runtime) |
-| `/simulator/browser` | Responsive desktop/laptop/tablet/phone frames |
+| `/smartmirror/pairing` | Pair this screen with OllaBridge (show a code, or type one) |
 | `/smartmirror/camera-test` | Live camera diagnostics for the current device |
 | `/smartmirror/portrait` | Fill screen: a real mirror, or a framed painting on the wall |
 | `/smartmirror/settings` | Live mirror default, fill-screen mode, painting style/frame/photo |
@@ -23,7 +20,7 @@ Vercel. The same pages run in a browser, inside the Echo Show shell
 
 ```bash
 pnpm install
-pnpm dev                     # http://localhost:3000 with the demo backend
+pnpm dev                     # http://localhost:3000 → /smartmirror, demo backend
 ```
 
 Against the local FastAPI service:
@@ -31,22 +28,6 @@ Against the local FastAPI service:
 ```bash
 SMARTMIRROR_API_URL=http://localhost:8100 pnpm dev
 ```
-
-## Simulator
-
-Each profile renders the app in an iframe at the device's real resolution and
-scales the device frame to fit, so media queries behave as on hardware. The
-developer panel:
-
-- toggles **touch, camera, microphone, Alexa, D-pad, OllaBridge online,
-  HomePilot online** live (touch off really blocks pointer input in the device);
-- has a **remote** (arrows / OK / Back / Home; the keyboard works too);
-- sends **Alexa utterances** as the directives the real skill sends;
-- shows a **companion phone** next to the device when a phone capture starts;
-- logs the **bridge traffic** between simulator and device.
-
-Echo profiles emulate the shell's `window.SmartMirrorNative` bridge, so the
-native-camera path runs the same JavaScript as on the Echo.
 
 ## Mirror and portrait modes
 
@@ -96,9 +77,6 @@ Real-time testing on a Vercel preview (HTTPS is required for cameras):
   HTTPS, camera API, permission, video inputs). Open it on the laptop, on the
   Echo shell, or in the Alexa session to see what that device really exposes.
 - **Live mirror** on the home screen streams the camera into the arch.
-- In the simulator, Echo and Alexa profiles use the laptop webcam for the
-  simulated device camera; toggle **Camera** off to test the phone fallback.
-  The `echo-show-21-alexa` profile simulates the Alexa HTML runtime.
 
 ## Backends
 
@@ -106,9 +84,9 @@ Real-time testing on a Vercel preview (HTTPS is required for cameras):
 
 | Mode | When | Tool calls go to |
 |---|---|---|
-| `demo` | nothing configured (every preview) | in-process sample wardrobe |
+| `ollabridge` | `OLLABRIDGE_BASE_URL`, `SMARTMIRROR_BACKEND=ollabridge`, or **any Vercel deployment** with nothing else configured (defaults to `https://app.ollabridge.com`) | OllaBridge → HomePilot → SmartMirror MCP |
 | `direct` | `SMARTMIRROR_API_URL` | SmartMirror `/rpc` |
-| `ollabridge` | `OLLABRIDGE_BASE_URL` (or `SMARTMIRROR_BACKEND=ollabridge`, which defaults to `https://app.ollabridge.com`) | OllaBridge → HomePilot → SmartMirror MCP |
+| `demo` | `SMARTMIRROR_BACKEND=demo`, or local development with nothing configured | in-process sample wardrobe |
 
 ## Pairing with OllaBridge
 
@@ -177,7 +155,7 @@ See `.env.example`. All settings are server-only; nothing uses `NEXT_PUBLIC_`.
 - Body photos are downscaled on the device, kept in local storage for 24 hours,
   and only relayed (never stored) through `/api/media` to OllaBridge's
   temporary media store in `ollabridge` mode.
-- The app may only be framed by its own origin (the simulator).
+- No other site may frame the app.
 
 ## Deploy to Vercel
 
@@ -194,10 +172,14 @@ Steps:
 
 1. Import the repository in Vercel (keep Root Directory empty; if you set it to
    `apps/web` instead, `apps/web/vercel.json` is used and also works).
-2. Add the environment variables from `.env.example` for Production (Preview
-   deployments can stay in demo mode).
+2. Set `SMARTMIRROR_SESSION_SECRET` (32+ random characters, e.g.
+   `openssl rand -base64 48`) for Production and Preview. Without it the
+   pairing screen says so and no screen can pair. Nothing else is required:
+   Vercel deployments pair with OllaBridge Cloud (`https://app.ollabridge.com`)
+   by default; set `OLLABRIDGE_BASE_URL` for another gateway, or
+   `SMARTMIRROR_BACKEND=demo` for the sample wardrobe.
 3. Every push gets a preview URL such as `smartmirror-git-<branch>.vercel.app`;
-   open `/simulator/echo-show-21` on it.
+   it opens straight into the app. Pair it at `/smartmirror/pairing`.
 
 Builds are skipped for commits that do not touch the web app, its packages or
 the lockfile.

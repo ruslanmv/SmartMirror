@@ -8,7 +8,7 @@ const monorepoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // The simulator frames the app from the same origin; nobody else may.
+  // No other site may frame the app.
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
   { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
@@ -26,7 +26,9 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/pairing", destination: "/smartmirror/pairing", permanent: false },
-      { source: "/simulator", destination: "/simulator/echo-show-21", permanent: false },
+      // The Echo Show simulator was retired; old links open the real app.
+      { source: "/simulator", destination: "/smartmirror", permanent: false },
+      { source: "/simulator/:path*", destination: "/smartmirror", permanent: false },
     ];
   },
 };

@@ -62,8 +62,12 @@ export function getConfig(): ServerConfig {
     mode = "ollabridge";
   } else if (smartmirrorApiUrl) {
     mode = "direct";
+  } else if (env("VERCEL")) {
+    // A Vercel deployment is the real product: screens pair with OllaBridge
+    // Cloud. SMARTMIRROR_BACKEND=demo brings the sample wardrobe back.
+    mode = "ollabridge";
   } else {
-    mode = "demo";
+    mode = "demo"; // local development without any backend
   }
 
   if (mode === "ollabridge" && !ollabridge.baseUrl) ollabridge.baseUrl = DEFAULT_OLLABRIDGE_URL;
