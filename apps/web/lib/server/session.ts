@@ -71,6 +71,20 @@ export async function writeSession(input: Omit<SessionData, "v" | "iat" | "exp">
   return data;
 }
 
+/** Renew at most once a day, so a screen in use stays paired with no 30-day cliff. */
+const RENEW_AFTER_SECONDS = 60 * 60 * 24;
+
+/**
+ * Sliding expiry for paired screens: a session older than a day is re-issued
+ * with a fresh 30-day lifetime. Only in route handlers (they may set cookies).
+ */
+export async function renewSession(session: SessionData | null): Promise<SessionData | null> {
+  if (!session || session.ticket || session.kind === "demo") return session;
+  if (Math.floor(Date.now() / 1000) - session.iat < RENEW_AFTER_SECONDS) return session;
+  const { v: _v, iat: _iat, exp: _exp, ...rest } = session;
+  return writeSession(rest).catch(() => session);
+}
+
 export async function clearSession(): Promise<void> {
   (await cookies()).delete(SESSION_COOKIE);
 }

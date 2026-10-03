@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Leanback launcher banner (320×180 dp): the mirror arch on the app's dark background. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="#0B0A09" android:pathData="M0,0h320v180h-320z" />
+    <path
+        android:strokeColor="#D9B77C"
+        android:strokeWidth="5"
+        android:fillColor="#00000000"
+        android:pathData="M130,150 L130,72 A30,30 0 0 1 190,72 L190,150 Z" />
+    <path
+        android:strokeColor="#D9B77C"
+        android:strokeWidth="3"
+        android:strokeAlpha="0.6"
+        android:fillColor="#00000000"
+        android:pathData="M148,96 L170,74" />
+</vector>

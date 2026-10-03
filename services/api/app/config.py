@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     smartmirror_public_mcp_url: str = "http://localhost:8100/rpc"
     smartmirror_body_capture_ttl_hours: int = 24
     smartmirror_preview_ttl_hours: int = 168
+    # Signed media links: lifetime in seconds, and the HMAC key for local-folder
+    # links (empty = random per process, so links die with a restart).
+    smartmirror_media_url_ttl_s: int = 300
+    smartmirror_media_url_secret: str = ""
     smartmirror_max_upload_mb: int = 25
 
     # Media storage: "local" (default, a folder on the owner's PC) or "s3" (MinIO/S3).

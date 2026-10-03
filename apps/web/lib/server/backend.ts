@@ -19,7 +19,7 @@ import {
   demoWardrobe,
 } from "./demo";
 import { MIRROR_CAPABILITY, OllaBridgeClient, UpstreamError, unwrapToolResult } from "./ollabridge";
-import { SessionConfigError, readSession, writeSession, type SessionData } from "./session";
+import { SessionConfigError, readSession, renewSession, writeSession, type SessionData } from "./session";
 
 /**
  * Backend-for-frontend dispatch. The browser calls one allow-listed tool at a
@@ -65,7 +65,7 @@ async function rememberNode(session: SessionData | null, nodeId: string): Promis
 }
 
 export async function requireAccess(config: ServerConfig): Promise<SessionData | null> {
-  const session = await readSession();
+  const session = await renewSession(await readSession());
   if (pairingRequired(config) && !session) {
     throw new BffError("Pair this screen to continue", 401, "pairing_required");
   }
@@ -201,7 +201,9 @@ async function callDirect(config: ServerConfig, tool: string, args: Record<strin
 
 export async function health(): Promise<HealthReport> {
   const config = getConfig();
-  const session = await readSession().catch(() => null);
+  const session = await readSession()
+    .then(renewSession)
+    .catch(() => null);
   const base: HealthReport = {
     backend: config.mode,
     paired: Boolean(session),

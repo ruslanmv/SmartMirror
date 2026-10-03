@@ -121,3 +121,23 @@ describe("/api/tools rate limit", () => {
     expect((await call(TOOLS.wardrobeList, {})).status).toBe(200);
   });
 });
+
+describe("paired screens stay paired", () => {
+  it("re-issues a day-old session with a fresh 30-day life, and leaves fresh ones alone", async () => {
+    vi.useFakeTimers({ now: new Date("2026-10-01T08:00:00Z"), toFake: ["Date"] });
+    await paired();
+    const first = jar.get("sm_session")!.value;
+    fakeCloud();
+    await callTool(TOOLS.wardrobeList, {});
+    expect(jar.get("sm_session")!.value).toBe(first); // same day: untouched
+
+    vi.setSystemTime(new Date("2026-10-26T08:00:00Z")); // 25 days later, 5 left
+    await callTool(TOOLS.wardrobeList, {});
+    const renewed = jar.get("sm_session")!.value;
+    expect(renewed).not.toBe(first);
+
+    vi.setSystemTime(new Date("2026-11-20T08:00:00Z")); // past the first expiry
+    await expect(callTool(TOOLS.wardrobeList, {})).resolves.toBeDefined();
+    vi.useRealTimers();
+  });
+});

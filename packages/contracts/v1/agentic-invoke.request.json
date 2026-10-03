@@ -2,7 +2,12 @@
   "operation": "agentic.invoke",
   "params": {
     "tool": "hp.smartmirror.style_suggest",
-    "arguments": { "profile_id": "local-user", "prompt": "black mini skirt for dinner", "limit": 3 },
+    "arguments": {
+      "profile_id": "local-user",
+      "prompt": "black mini skirt for dinner",
+      "limit": 3,
+      "_meta": { "trace_id": "0b6f1c1e-6f43-4c4e-9a53-2f1f6f1d8a10", "idempotency_key": "5d0f8f0e-3c9b-4f7e-8a51-0c2d6b7a9e21" }
+    },
     "timeout_s": 30
   }
 }

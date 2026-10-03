@@ -18,6 +18,8 @@ export interface NativeDeviceInfo {
   shellVersion: string;
   model: string;
   osVersion: string;
+  /** OS build string (Fire OS build on an Echo), e.g. from android.os.Build.DISPLAY. */
+  build?: string;
 }
 
 /** Shape of the injected `window.SmartMirrorNative` object. */

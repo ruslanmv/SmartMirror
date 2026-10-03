@@ -4,7 +4,19 @@ All notable changes to SmartMirror will be documented here.
 
 ## [Unreleased]
 
+### Fixed
+- CI: `ruff check .` passes (backend CI was red), and the Echo shell builds
+  (missing `gradle.properties`) and passes Android lint.
+
 ### Added
+- Issue fixes (#2–#5) and the device probe for #1: signed, expiring media links
+  (`/v1/media/{id}`, presigned S3, tool `hp.smartmirror.media_link`); a private-bucket
+  check that creates the MinIO bucket and refuses public policies; a pixel cap against
+  decompression bombs; atomic try-on job claims with the provider's job id stored; the
+  web BFF tested against the published v1 contract fixtures; paired screens renew their
+  session while in use; the Echo shell keeps its session cookie across power cuts, shows
+  an offline screen that retries, and has a TV launcher banner; `/smartmirror/device-probe`
+  runs the Echo Show 21 checks on the device and reports by QR code.
 - Hardening: one trace id per tool call across every hop (logged by the BFF and the
   SmartMirror API, shown as "Reference …" on errors), idempotency keys so a lost submit
   is retried safely, per-profile rate limits on the PC and per-screen limits in the BFF,

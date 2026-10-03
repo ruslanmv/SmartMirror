@@ -9,6 +9,7 @@ import {
   type CameraProbe,
 } from "@smartmirror/device-capabilities";
 import { Badge, Button, Chip, StatusPill, type StatusTone } from "@smartmirror/ui";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { Mirror } from "@/components/Mirror";
@@ -74,7 +75,16 @@ export default function CameraTestPage() {
 
   return (
     <div className="screen">
-      <ScreenHeader title="Camera test" subtitle="Check every capture path on this device, live." backHref="/smartmirror/capture" />
+      <ScreenHeader
+        title="Camera test"
+        subtitle="Check every capture path on this device, live."
+        backHref="/smartmirror/capture"
+        actions={
+          <Link href="/smartmirror/device-probe" className="sm-btn sm-btn--sm">
+            Full device probe
+          </Link>
+        }
+      />
       <div className="tryon">
         <div className="stage__view" style={{ minHeight: 0 }}>
           <Mirror imageUrl={!live ? snapshot?.url : null} label="Camera test preview" caption={snapshot && !live ? <Badge tone="accent">{snapshot.source} snapshot</Badge> : undefined}>

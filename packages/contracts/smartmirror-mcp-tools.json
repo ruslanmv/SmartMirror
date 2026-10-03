@@ -74,6 +74,10 @@
       "required": ["confirm"]
     },
     {
+      "name": "hp.smartmirror.media_link",
+      "required": ["asset_id"]
+    },
+    {
       "name": "hp.smartmirror.job_get",
       "required": ["job_id"]
     }

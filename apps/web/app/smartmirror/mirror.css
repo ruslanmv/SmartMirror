@@ -566,3 +566,18 @@ html[data-dpad="true"] .sm-chip:focus-visible { transform: scale(1.06); }
 .complete-look__offer { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: 1rem; align-items: center; }
 .complete-look__offer .qr { width: 7rem; height: 7rem; padding: 0.4rem; border-radius: 0.5rem; background: #f5efe4; }
 .complete-look__title { font-weight: 500; margin-bottom: 0.25rem; }
+
+/* ================= Device probe ================= */
+
+.probe { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 0.8fr); gap: 1.5rem; min-height: 0; }
+.probe__checks { padding: 0.6rem 1rem; }
+.probe__checks table { width: 100%; border-collapse: collapse; }
+.probe__checks th, .probe__checks td { padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--sm-border); text-align: left; vertical-align: middle; }
+.probe__checks th { font-weight: 500; }
+.probe__checks th small { display: block; font-weight: 400; font-size: 0.75rem; color: var(--sm-text-3); }
+.probe__note { font-size: 0.8rem; color: var(--sm-text-2); word-break: break-word; }
+.probe__side { display: grid; gap: 0.8rem; align-content: start; justify-items: center; padding: 1.25rem; }
+.probe__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+.probe__video { width: 100%; max-height: 7.5rem; object-fit: contain; border-radius: var(--sm-radius); background: #000; }
+.probe__side .qr { width: 12rem; height: 12rem; padding: 0.6rem; }
+@media (max-width: 900px) { .probe { grid-template-columns: 1fr; } }

@@ -3,9 +3,9 @@ from __future__ import annotations
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from services.api.app import models  # noqa: F401
 from services.api.app.config import get_settings
 from services.api.app.database import Base
-from services.api.app import models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().smartmirror_database_url)

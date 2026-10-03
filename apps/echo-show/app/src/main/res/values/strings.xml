@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="offline_message">Can’t reach Smart Mirror right now.\nCheck the Wi-Fi; trying again every few seconds.\n\nPress OK to try now.</string>
+</resources>

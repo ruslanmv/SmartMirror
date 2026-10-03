@@ -5,7 +5,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from services.api.app.config import get_settings
 from services.api.app.database import get_db
 from services.api.app.models import (
+    Asset,
     CaptureSession,
     GenerationJob,
     OutfitSet,
@@ -151,6 +152,15 @@ async def _tryon_create(args: dict[str, Any], db: Session) -> Any:
         instruction=str(args.get("instruction") or ""),
     )
     return {"job_id": job.id, "status": job.status}
+
+
+async def _media_link(args: dict[str, Any], db: Session) -> Any:
+    """A short-lived signed link to one of the profile's images (for screens on the home network)."""
+    asset = db.get(Asset, str(args["asset_id"]))
+    if asset is None or asset.profile_id != str(args.get("profile_id") or "local-user"):
+        raise ValueError("RESOURCE_REJECTED: image not found")
+    ttl = int(args.get("expires_in") or get_settings().smartmirror_media_url_ttl_s)
+    return {"url": media.signed_url(asset, get_store(), ttl), "expires_in": min(max(ttl, 1), 3600)}
 
 
 async def _job_get(args: dict[str, Any], db: Session) -> Any:
@@ -515,6 +525,16 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
         "handler": _profile_delete,
     },
+    "hp.smartmirror.media_link": {
+        "description": "Get a short-lived signed URL for one of the profile's images (never a public URL).",
+        "inputSchema": {
+            "type": "object",
+            "required": ["asset_id"],
+            "properties": {"profile_id": {"type": "string"}, "asset_id": {"type": "string"},
+                           "expires_in": {"type": "integer", "minimum": 1, "maximum": 3600}},
+        },
+        "handler": _media_link,
+    },
     "hp.smartmirror.job_get": {
         "description": "Poll the status of an asynchronous SmartMirror job such as a try-on.",
         "inputSchema": {
@@ -528,7 +548,7 @@ TOOLS: dict[str, dict[str, Any]] = {
 
 
 @router.post("/rpc")
-async def rpc(request: Request, db: Session = Depends(get_db)) -> JSONResponse:
+async def rpc(request: Request, db: Annotated[Session, Depends(get_db)]) -> JSONResponse:
     body = await request.json()
     request_id = body.get("id")
     method = body.get("method")
@@ -569,7 +589,7 @@ async def rpc(request: Request, db: Session = Depends(get_db)) -> JSONResponse:
                     },
                 }
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — any tool error becomes a JSON-RPC error, never a 500
             db.rollback()
             log.info("tool=%s trace=%s ok=false ms=%d error=%s", name, trace_id or "-", (time.monotonic() - started) * 1000, str(exc)[:120])
             return JSONResponse(

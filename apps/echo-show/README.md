@@ -16,9 +16,7 @@ SmartMirrorEcho.apk
 ```
 
 The JavaScript side of the contract lives in
-`packages/device-capabilities/src/native-bridge.ts`, and the Vercel simulator
-emulates it for the Echo profiles, so the same code path is tested without the
-device.
+`packages/device-capabilities/src/native-bridge.ts`.
 
 Design constraints:
 
@@ -30,11 +28,23 @@ Design constraints:
 - Pairing and every backend call go through the web app's BFF and OllaBridge.
   The APK holds no HomePilot or OllaBridge credential.
 
-Build (point it at any Vercel preview):
+Pairing (show a code with a QR, or type a code with the remote) happens on the
+web app's `/smartmirror/pairing` screen. The result is a sealed, HttpOnly
+session cookie that the shell keeps in the WebView cookie store and flushes to
+disk after every page load and on pause, so the screen stays paired across
+restarts and power cuts; the web app renews it while the screen is in use. The
+web app then lists the owner's nodes (`GET /v1/mirror/nodes` through the BFF),
+remembers the HomePilot it uses, and shows "HomePilot offline" when that node
+is down. No LAN address of the home PC is ever needed.
+
+If the app itself cannot load (no Wi-Fi, deployment down), the shell shows a
+full-screen notice, retries every 10 seconds, and retries at once on OK.
+
+Build (point it at any Vercel deployment; needs the Android SDK, platform 35):
 
 ```bash
-gradle :app:assembleDebug -PsmartmirrorWebUrl=https://smart-mirror.vercel.app
+gradle :app:lintDebug :app:assembleDebug -PsmartmirrorWebUrl=https://smart-mirror.vercel.app
 ```
 
-`OllaBridgeApi.kt` / `OllaBridgeClient.kt` are kept for the native probe
-milestone (`docs/device-testing/echo-show-21.md`); the shell itself does not use them.
+To check a physical device, open `/smartmirror/device-probe` inside the shell
+and follow `docs/device-testing/echo-show-21.md`.

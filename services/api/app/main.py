@@ -4,11 +4,12 @@ import logging
 import os
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from integrations.homepilot.mcp_server.router import router as mcp_router
+from smartmirror import media
 from smartmirror.privacy import delete_profile_data, sweep_expired
 from smartmirror.storage import get_store
 from smartmirror.stylist.service import suggest
@@ -48,6 +49,9 @@ def startup() -> None:
     Base.metadata.create_all(bind=engine)
 
 
+DbSession = Annotated[Session, Depends(get_db)]
+
+
 @app.get("/health")
 def health() -> dict:
     return {"ok": True, "service": "smartmirror", "version": "0.1.0"}
@@ -65,7 +69,7 @@ def capabilities() -> dict:
 
 
 @app.post("/v1/wardrobe/items", response_model=WardrobeItemOut, status_code=201)
-def create_wardrobe_item(body: WardrobeItemCreate, db: Session = Depends(get_db)) -> WardrobeItemOut:
+def create_wardrobe_item(body: WardrobeItemCreate, db: DbSession) -> WardrobeItemOut:
     item = WardrobeItem(
         profile_id=body.profile_id,
         category=body.category,
@@ -83,7 +87,7 @@ def create_wardrobe_item(body: WardrobeItemCreate, db: Session = Depends(get_db)
 
 
 @app.get("/v1/wardrobe/items", response_model=list[WardrobeItemOut])
-def list_wardrobe_items(profile_id: str = "local-user", db: Session = Depends(get_db)) -> list[WardrobeItemOut]:
+def list_wardrobe_items(db: DbSession, profile_id: str = "local-user") -> list[WardrobeItemOut]:
     rows = list(db.scalars(select(WardrobeItem).where(WardrobeItem.profile_id == profile_id)))
     return [
         WardrobeItemOut(
@@ -102,7 +106,7 @@ def list_wardrobe_items(profile_id: str = "local-user", db: Session = Depends(ge
 
 
 @app.post("/v1/style/requests", response_model=StyleSuggestOut)
-def style_request(body: StyleSuggestIn, db: Session = Depends(get_db)) -> StyleSuggestOut:
+def style_request(body: StyleSuggestIn, db: DbSession) -> StyleSuggestOut:
     req, outfits = suggest(db, body.profile_id, body.prompt, body.limit)
     return StyleSuggestOut(
         request_id=req.id,
@@ -115,7 +119,7 @@ def style_request(body: StyleSuggestIn, db: Session = Depends(get_db)) -> StyleS
 
 
 @app.post("/v1/tryon/jobs", response_model=JobOut, status_code=202)
-def create_tryon(body: TryOnCreateIn, db: Session = Depends(get_db)) -> JobOut:
+def create_tryon(body: TryOnCreateIn, db: DbSession) -> JobOut:
     job = create_tryon_job(
         db,
         profile_id=body.profile_id,
@@ -127,7 +131,7 @@ def create_tryon(body: TryOnCreateIn, db: Session = Depends(get_db)) -> JobOut:
 
 
 @app.get("/v1/jobs/{job_id}", response_model=JobOut)
-def get_job(job_id: str, db: Session = Depends(get_db)) -> JobOut:
+def get_job(job_id: str, db: DbSession) -> JobOut:
     job = db.get(GenerationJob, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -139,8 +143,6 @@ def get_job(job_id: str, db: Session = Depends(get_db)) -> JobOut:
         error_code=job.error_code,
     )
 
-
-DbSession = Annotated[Session, Depends(get_db)]
 
 
 @app.delete("/v1/profile/data")
@@ -155,3 +157,18 @@ def delete_profile(db: DbSession, profile_id: str = "local-user", confirm: str =
 def sweep(db: DbSession) -> dict:
     """Apply retention: expired body captures and previews are removed."""
     return {"expired_assets": sweep_expired(db, get_store())}
+
+
+@app.get("/v1/media/{asset_id}")
+def signed_media(asset_id: str, db: DbSession, exp: str = "", sig: str = "") -> Response:
+    """Serve one image through a signed, expiring link (local-folder storage)."""
+    try:
+        data, asset = media.open_signed(db, get_store(), asset_id, exp, sig)
+    except media.MediaRejected:
+        # Same answer for unknown, tampered and expired links.
+        raise HTTPException(status_code=403, detail="Link invalid or expired") from None
+    return Response(
+        content=data,
+        media_type=asset.content_type,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )

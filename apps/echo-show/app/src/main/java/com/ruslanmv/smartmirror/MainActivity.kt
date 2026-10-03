@@ -7,12 +7,20 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
+import android.webkit.CookieManager
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,10 +35,20 @@ import androidx.activity.result.contract.ActivityResultContracts
  *  1. native capture through the bridge (system camera activity);
  *  2. getUserMedia inside this WebView, granted below for the app origin only;
  *  3. the companion phone (QR code), which needs neither.
+ *
+ * Pairing happens in the web app (show a code / type a code, OllaBridge).
+ * The result is a sealed HttpOnly session cookie that this shell keeps in
+ * the WebView cookie store and flushes to disk, so the screen stays paired
+ * across restarts. The APK itself never sees an OllaBridge token.
  */
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var bridge: SmartMirrorBridge
+    private lateinit var offlineView: TextView
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val retry = Runnable { reloadApp() }
+    private var mainFrameFailed = false
 
     private val appOrigin: Uri by lazy { Uri.parse(BuildConfig.SMARTMIRROR_WEB_URL) }
 
@@ -66,7 +84,27 @@ class MainActivity : ComponentActivity() {
         bridge = SmartMirrorBridge(this, webView)
         webView.addJavascriptInterface(bridge, SmartMirrorBridge.NAME)
 
-        setContentView(webView)
+        // The paired session is a first-party HttpOnly cookie; keep it, refuse third-party ones.
+        CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            setAcceptThirdPartyCookies(webView, false)
+        }
+
+        offlineView = TextView(this).apply {
+            text = getString(R.string.offline_message)
+            setTextColor(Color.parseColor("#EFE6D8"))
+            setBackgroundColor(Color.parseColor("#0B0A09"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
+            gravity = Gravity.CENTER
+            setLineSpacing(0f, 1.3f)
+            isFocusable = true
+            visibility = View.GONE
+            setOnClickListener { reloadApp() } // OK on the remote, or a tap
+        }
+        setContentView(FrameLayout(this).apply {
+            addView(webView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            addView(offlineView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+        })
         hideSystemBars()
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -76,7 +114,7 @@ class MainActivity : ComponentActivity() {
         })
 
         if (savedInstanceState == null) {
-            webView.loadUrl(appOrigin.buildUpon().appendEncodedPath("smartmirror").build().toString())
+            webView.loadUrl(startUrl())
         } else {
             webView.restoreState(savedInstanceState)
         }
@@ -103,12 +141,47 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun startUrl(): String = appOrigin.buildUpon().appendEncodedPath("smartmirror").build().toString()
+
+    private fun reloadApp() {
+        handler.removeCallbacks(retry)
+        val current = webView.url
+        if (current.isNullOrEmpty() || current.startsWith("data:") || current == "about:blank") {
+            webView.loadUrl(startUrl())
+        } else {
+            webView.reload()
+        }
+    }
+
+    /** The app could not load (no network, Vercel down): say so and retry on our own. */
+    private fun showOffline() {
+        offlineView.visibility = View.VISIBLE
+        offlineView.requestFocus()
+        handler.removeCallbacks(retry)
+        handler.postDelayed(retry, RETRY_MS)
+    }
+
+    private fun hideOffline() {
+        handler.removeCallbacks(retry)
+        if (offlineView.visibility == View.VISIBLE) {
+            offlineView.visibility = View.GONE
+            webView.requestFocus()
+        }
+    }
+
+    override fun onPause() {
+        // Persist the session cookie now: a power cut right after pairing must not lose it.
+        CookieManager.getInstance().flush()
+        super.onPause()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         webView.saveState(outState)
     }
 
     override fun onDestroy() {
+        handler.removeCallbacks(retry)
         webView.removeJavascriptInterface(SmartMirrorBridge.NAME)
         webView.destroy()
         super.onDestroy()
@@ -131,5 +204,27 @@ class MainActivity : ComponentActivity() {
             runCatching { startActivity(Intent(Intent.ACTION_VIEW, url)) }
             return true
         }
+
+        override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+            mainFrameFailed = false
+        }
+
+        override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+            if (request.isForMainFrame) {
+                mainFrameFailed = true
+                showOffline()
+            }
+        }
+
+        override fun onPageFinished(view: WebView, url: String?) {
+            if (!mainFrameFailed) {
+                hideOffline()
+                CookieManager.getInstance().flush()
+            }
+        }
+    }
+
+    private companion object {
+        const val RETRY_MS = 10_000L
     }
 }

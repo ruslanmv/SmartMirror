@@ -58,6 +58,7 @@ class SmartMirrorBridge(
         .put("shellVersion", BuildConfig.VERSION_NAME)
         .put("model", "${Build.MANUFACTURER} ${Build.MODEL}")
         .put("osVersion", "Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+        .put("build", Build.DISPLAY) // the Fire OS build on an Echo, for the device probe report
         .toString()
 
     @JavascriptInterface

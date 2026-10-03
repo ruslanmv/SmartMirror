@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
+import hmac
 import io
 import re
+import secrets
+import time
 from datetime import UTC, datetime, timedelta
 
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -23,6 +27,8 @@ from smartmirror.storage import MediaStore, make_key, sha256
 _DATA_URL = re.compile(r"^data:(image/(?:jpeg|png|webp));base64,(.+)$", re.DOTALL)
 KINDS = {"capture", "garment", "cutout", "thumbnail", "mask", "preview"}
 MAX_EDGE = 1600
+# A small file can decode to a huge bitmap; refuse anything beyond ~40 megapixels.
+MAX_PIXELS = 40_000_000
 
 
 class MediaRejected(ValueError):
@@ -45,9 +51,11 @@ def normalize_image(data: bytes, *, max_edge: int = MAX_EDGE, quality: int = 88)
     """Re-encode (drops EXIF/ICC/text), apply orientation, cap the long edge."""
     try:
         img = Image.open(io.BytesIO(data))
+        if img.width * img.height > MAX_PIXELS:
+            raise MediaRejected("RESOURCE_REJECTED: image has too many pixels")
         img.verify()
         img = Image.open(io.BytesIO(data))
-    except (UnidentifiedImageError, OSError, SyntaxError):
+    except (UnidentifiedImageError, OSError, SyntaxError, Image.DecompressionBombError):
         raise MediaRejected("RESOURCE_REJECTED: not a readable image") from None
     if img.format not in ("JPEG", "PNG", "WEBP"):
         raise MediaRejected("RESOURCE_REJECTED: only JPEG, PNG or WebP images are accepted")
@@ -104,6 +112,60 @@ def load(db: Session, store: MediaStore, asset_id: str, profile_id: str) -> tupl
     if asset.expires_at and _aware(asset.expires_at) < datetime.now(UTC):
         raise MediaRejected("RESOURCE_REJECTED: image expired")
     return store.get(asset.storage_key), asset
+
+
+# ── expiring signed URLs ────────────────────────────────────────────────
+# Objects have no public URL. A signed URL names one asset, expires within
+# minutes (never after the asset itself), and is checked on every request.
+
+_process_secret = secrets.token_bytes(32)
+
+
+def _url_secret() -> bytes:
+    from services.api.app.config import get_settings
+
+    configured = get_settings().smartmirror_media_url_secret
+    return configured.encode() if configured else _process_secret
+
+
+def _signature(asset_id: str, profile_id: str, exp: int) -> str:
+    msg = f"{asset_id}:{profile_id}:{exp}".encode()
+    return hmac.new(_url_secret(), msg, hashlib.sha256).hexdigest()
+
+
+def signed_url(asset: Asset, store: MediaStore, ttl_s: int | None = None) -> str:
+    """A URL that serves this asset until it expires.
+
+    S3/MinIO: a presigned GET. Local folder: ``/v1/media/{id}?exp=…&sig=…`` on
+    the SmartMirror API (relative; the caller adds the host).
+    """
+    from services.api.app.config import get_settings
+
+    ttl = max(1, min(int(ttl_s or get_settings().smartmirror_media_url_ttl_s), 3600))
+    if asset.expires_at:
+        left = int((_aware(asset.expires_at) - datetime.now(UTC)).total_seconds())
+        if left <= 0:
+            raise MediaRejected("RESOURCE_REJECTED: image expired")
+        ttl = min(ttl, left)
+    presign = getattr(store, "presign", None)
+    if callable(presign):
+        return presign(asset.storage_key, ttl)
+    exp = int(time.time()) + ttl
+    return f"/v1/media/{asset.id}?exp={exp}&sig={_signature(asset.id, asset.profile_id, exp)}"
+
+
+def open_signed(db: Session, store: MediaStore, asset_id: str, exp: str, sig: str) -> tuple[bytes, Asset]:
+    """Serve a signed URL: the signature, its expiry and the asset's own TTL must all hold."""
+    try:
+        exp_at = int(exp)
+    except (TypeError, ValueError):
+        raise MediaRejected("RESOURCE_REJECTED: invalid link") from None
+    asset = db.get(Asset, asset_id)
+    if asset is None or not hmac.compare_digest(_signature(asset.id, asset.profile_id, exp_at), sig or ""):
+        raise MediaRejected("RESOURCE_REJECTED: invalid link")
+    if exp_at < time.time():
+        raise MediaRejected("RESOURCE_REJECTED: link expired")
+    return load(db, store, asset.id, asset.profile_id)
 
 
 def as_data_url(data: bytes, *, max_edge: int = 1024, quality: int = 85) -> str:

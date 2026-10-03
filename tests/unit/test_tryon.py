@@ -279,3 +279,56 @@ def test_capture_session_expires(store):
         sid = cap.id
     got = rpc(TestClient(app), "hp.smartmirror.capture_session_get", {"profile_id": "p-exp", "session_id": sid})
     assert got.json()["result"]["structuredContent"]["status"] == "expired"
+
+
+# ── issue #3: claim once, keep provider metadata, no image bytes in logs ──
+
+
+def test_a_job_is_claimed_once(store):
+    job_id = _seed(store, profile="p-claim")
+    fake = FakeProvider()
+    assert asyncio.run(tryon.run_tryon_job(job_id, provider=fake, store=store)) == "succeeded"
+    # The worker (or a retry) finds the job no longer queued and does nothing.
+    assert asyncio.run(tryon.run_tryon_job(job_id, provider=fake, store=store)) == "succeeded"
+    assert asyncio.run(tryon.process_queued()) == 0
+    assert len(fake.requests) == 1
+
+
+def test_concurrent_runners_do_not_double_run(store):
+    job_id = _seed(store, profile="p-race")
+    fake = FakeProvider()
+
+    async def both():
+        return await asyncio.gather(
+            tryon.run_tryon_job(job_id, provider=fake, store=store),
+            tryon.run_tryon_job(job_id, provider=fake, store=store),
+        )
+
+    asyncio.run(both())
+    assert len(fake.requests) == 1
+
+
+def test_provider_metadata_and_disclaimer_are_stored(store):
+    job_id = _seed(store, profile="p-meta-job")
+    result = TryOnResult(images=[jpeg(exif=False)], provider="homepilot-node",
+                         metadata={"node_job_id": "job_abc", "raw": b"\x00bytes"})
+    asyncio.run(tryon.run_tryon_job(job_id, provider=FakeProvider(result=result), store=store))
+    with SessionLocal() as db:
+        job = db.get(GenerationJob, job_id)
+        assert job.provider == "fake" and job.status == "succeeded"
+        assert job.result_json["provider"] == "homepilot-node"
+        assert job.result_json["provider_metadata"] == {"node_job_id": "job_abc"}  # bytes never stored
+        assert "not a fit guarantee" in job.result_json["disclaimer"]
+
+
+def test_no_image_data_in_logs(store, caplog):
+    caplog.set_level("DEBUG")
+    ok = _seed(store, profile="p-log-ok")
+    bad = _seed(store, profile="p-log-bad")
+    asyncio.run(tryon.run_tryon_job(ok, provider=FakeProvider(), store=store))
+    asyncio.run(tryon.run_tryon_job(bad, provider=FakeProvider(error=RuntimeError("render failed")), store=store))
+    TestClient(app).post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {
+        "name": "hp.smartmirror.capture_upload",
+        "arguments": {"profile_id": "p-log-ok", "image": data_url(jpeg()), "_meta": {"trace_id": "t-log"}}}})
+    text = caplog.text
+    assert "base64" not in text and "/9j/" not in text and "\\xff\\xd8" not in text

@@ -13,7 +13,7 @@ import logging
 import threading
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from services.api.app.config import get_settings
@@ -103,14 +103,20 @@ async def run_tryon_job(
     provider = provider or get_provider()
     store = store or get_store()
     with SessionLocal() as db:
+        # Claim atomically: only one runner (the inline thread or the worker)
+        # moves a job out of "queued"; everyone else sees rowcount 0 and stops.
+        claimed = db.execute(
+            update(GenerationJob)
+            .where(GenerationJob.id == job_id, GenerationJob.status == "queued")
+            .values(status="running", progress=0.1, provider=provider.name if provider else None)
+        ).rowcount
+        db.commit()
         job = db.get(GenerationJob, job_id)
-        if job is None or job.status not in ("queued",):
+        if not claimed:
             return job.status if job else "missing"
         if provider is None:
             _fail(db, job, "CAPABILITY_UNAVAILABLE: no try-on provider configured")
             return job.status
-        job.status, job.progress, job.provider = "running", 0.1, provider.name
-        db.commit()
 
         req = job.request_json or {}
         try:
@@ -148,7 +154,13 @@ async def run_tryon_job(
             return job.status
 
         job.status, job.progress = "succeeded", 1.0
-        job.result_json = {"preview_asset_id": preview.id, "provider": result.provider, "disclaimer": DISCLAIMER}
+        job.result_json = {
+            "preview_asset_id": preview.id,
+            "provider": result.provider,
+            # e.g. HomePilot's node job id, to find the run on the PC
+            "provider_metadata": {k: v for k, v in (result.metadata or {}).items() if isinstance(v, str | int | float | bool)},
+            "disclaimer": DISCLAIMER,
+        }
         record(db, job.profile_id, "tryon.succeeded", job.id)
         db.commit()
         return job.status
