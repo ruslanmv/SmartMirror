@@ -6,6 +6,15 @@ actually ask for: **suggestions for the day** ("work day", "shopping day"),
 **reacting to clothes they just added**, and the **clothes detector** that feeds
 all of it. Date: 4 October 2026 · branch `claude/upbeat-maxwell-sky163`.
 
+> **Status (5 October 2026): steps 1–5 of §5 are implemented** on this branch. The
+> vocabulary lives in `packages/contracts/stylist-lexicon.json`, and both engines are
+> tested against `packages/contracts/stylist-intents.json`. The PC engine adds `vibe`, time
+> of day, the one question, item tags and an anchor piece. The screen sends history
+> and a "Today" note, orders the home ideas by the day, shows answer chips, and says one
+> line after a piece is added. The Stylist persona is now 1.1.0 (re-import
+> `stylist.hpersona`). Steps 6–8 (detector use-attributes, morning line and weather,
+> calendar) are still open. §1–§2 describe the state before the upgrade.
+
 ## 1. How it works today
 
 ```text

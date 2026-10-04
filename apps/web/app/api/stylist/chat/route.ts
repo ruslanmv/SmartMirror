@@ -9,6 +9,7 @@ import {
   listPersonas,
   pickStylist,
   type ChatTurn,
+  type DayContext,
   type GroundingItem,
 } from "@/lib/server/stylist";
 import { clientKey, createThrottle } from "@/lib/server/throttle";
@@ -43,9 +44,26 @@ function parseHistory(v: unknown): ChatTurn[] {
   });
 }
 
+function parseContext(v: unknown): DayContext | null {
+  if (!v || typeof v !== "object") return null;
+  const r = v as Record<string, unknown>;
+  const ctx: DayContext = {
+    today: str(r.today, 40) ?? undefined,
+    partOfDay: str(r.partOfDay, 20) ?? undefined,
+    plan: str(r.plan, 200) ?? undefined,
+    newPieces: Array.isArray(r.newPieces) ? r.newPieces.slice(0, 5).flatMap((p) => str(p, 60) ?? []) : undefined,
+  };
+  return ctx.today || ctx.partOfDay || ctx.plan || ctx.newPieces?.length ? ctx : null;
+}
+
+function parseHour(v: unknown): number | null {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 23 ? v : null;
+}
+
 /**
  * Ask the owner's HomePilot Stylist persona. Body:
- *   { prompt, items?: [{id, name, category?, color?}], history?: [{role, content}], model? }
+ *   { prompt, items?: [{id, name, category?, color?}], history?: [{role, content}], model?,
+ *     context?: {today?, partOfDay?, plan?, newPieces?}, hour? }
  * `items` are the owned pieces the wardrobe tools chose; they become the
  * persona's "Owned items" grounding block.
  */
@@ -59,12 +77,13 @@ export async function POST(request: Request) {
     if (!prompt) return Response.json({ error: "Ask your stylist something", code: "bad_request" }, { status: 400 });
     const items = parseItems(body.items);
     const history = parseHistory(body.history);
+    const context = parseContext(body.context);
 
     const config = getConfig();
     const session = await requireAccess(config);
 
     if (config.mode === "demo") {
-      return Response.json({ reply: demoReply(prompt, items), persona: { id: "demo:stylist", name: "Stylist (demo)" }, grounded: items.length > 0 });
+      return Response.json({ reply: demoReply(prompt, items, context, parseHour(body.hour)), persona: { id: "demo:stylist", name: "Stylist (demo)" }, grounded: items.length > 0 });
     }
     if (config.mode !== "ollabridge") {
       return Response.json({ error: "The stylist persona needs the OllaBridge backend", code: "unavailable" }, { status: 501 });
@@ -82,7 +101,7 @@ export async function POST(request: Request) {
         "no_persona",
       );
     }
-    const reply = await chatCompletion(baseUrl, token, persona.id, buildMessages(prompt, items, history));
+    const reply = await chatCompletion(baseUrl, token, persona.id, buildMessages(prompt, items, history, context));
     return Response.json({ reply, persona, grounded: items.length > 0 }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     if (err instanceof StylistError) return Response.json({ error: err.message, code: err.code }, { status: err.status });

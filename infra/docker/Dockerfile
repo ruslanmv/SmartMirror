@@ -6,6 +6,7 @@ COPY smartmirror /app/smartmirror
 COPY services /app/services
 COPY integrations /app/integrations
 COPY scripts /app/scripts
+COPY packages/contracts /app/packages/contracts
 
 RUN pip install --no-cache-dir .
 

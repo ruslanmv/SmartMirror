@@ -1,5 +1,7 @@
 import "server-only";
 
+import { parseIntent } from "@/lib/intent";
+
 import { USER_AGENT } from "./pairing";
 
 /**
@@ -77,10 +79,35 @@ export function groundingBlock(items: GroundingItem[]): string | null {
   return `Owned items (recommend only these; they are what the owner has):\n${lines.join("\n")}`;
 }
 
-export function buildMessages(prompt: string, items: GroundingItem[], history: ChatTurn[]) {
+/** What the screen knows about today; every field optional and short. */
+export interface DayContext {
+  /** e.g. "Saturday 4 October" */
+  today?: string;
+  /** "morning" | "afternoon" | "evening" | "night" */
+  partOfDay?: string;
+  /** Today's look from a saved outfit plan, e.g. "This week · Saturday: Camel knit, Blue jeans". */
+  plan?: string;
+  /** Pieces added in the last few days. */
+  newPieces?: string[];
+}
+
+/** The persona's "Today" block (docs/ux/stylist-conversation-review.md §3.2). */
+export function contextBlock(ctx: DayContext | null | undefined): string | null {
+  if (!ctx) return null;
+  const lines = [
+    ctx.today || ctx.partOfDay ? `Today: ${[ctx.today, ctx.partOfDay].filter(Boolean).join(", ")}.` : null,
+    ctx.plan ? `Plan: ${ctx.plan}.` : null,
+    ctx.newPieces?.length ? `New in the wardrobe: ${ctx.newPieces.join(", ")}.` : null,
+  ].filter(Boolean);
+  return lines.length ? lines.join("\n") : null;
+}
+
+export function buildMessages(prompt: string, items: GroundingItem[], history: ChatTurn[], context?: DayContext | null) {
   const messages: { role: "system" | "user" | "assistant"; content: string }[] = [];
+  const today = contextBlock(context);
   const block = groundingBlock(items);
   // A remote persona keeps its own system prompt (3D Avatar rule); this only adds context.
+  if (today) messages.push({ role: "system", content: today });
   if (block) messages.push({ role: "system", content: block });
   messages.push(...history.slice(-6));
   messages.push({ role: "user", content: prompt });
@@ -166,17 +193,36 @@ export async function chatCompletion(
 }
 
 /** Demo backend: a short, speakable answer built only from the grounding items. */
-export function demoReply(prompt: string, items: GroundingItem[]): string {
+const DEMO_REASONS: Record<string, string> = {
+  alluring: "Fitted, a little daring and very confident.",
+  romantic: "Soft and romantic, just right for a love day.",
+  date: "Soft, romantic and polished for a date.",
+  evening: "It reads polished for the evening.",
+  office: "It's sharp enough for work and still comfortable.",
+  interview: "Composed and sharp, so you can focus on the conversation.",
+  shopping: "Easy to walk in all day and quick to change.",
+  home: "Soft and comfortable for a slow day in.",
+  relaxed: "Relaxed and easy.",
+  bold: "Bold, with a real statement.",
+};
+
+/** The demo persona: reads the request like the real stylist (occasion × vibe, the day). */
+export function demoReply(prompt: string, items: GroundingItem[], context?: DayContext | null, hour: number | null = null): string {
+  const intent = parseIntent(prompt, hour);
+  if (intent.question === "day_or_night") return "Day or night?";
   if (!items.length) {
-    return "Tell me the occasion and I'll pull a complete look from your wardrobe. Start with one piece you love and build around it.";
+    return context?.plan
+      ? `Your plan for today is ready: ${context.plan.split(": ").at(-1)?.toLowerCase()}. Want something different? Tell me the mood.`
+      : "Tell me the occasion or the mood and I'll pull a complete look from your wardrobe.";
   }
   const [a, b, c] = items;
   const names = [a, b, c].filter(Boolean).map((i) => i!.name.toLowerCase());
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
-  const occasion = /dinner|date|party|cocktail|wedding/i.test(prompt)
-    ? "It reads polished for the evening."
-    : /office|work|meeting/i.test(prompt)
-      ? "It's sharp enough for work and still comfortable."
-      : "It's easy, balanced and ready to go.";
-  return `Go with the ${list}. ${occasion}`;
+  const reason =
+    (intent.vibe && intent.vibe !== "romantic" ? DEMO_REASONS[intent.vibe] : undefined) ??
+    DEMO_REASONS[intent.occasion ?? ""] ??
+    DEMO_REASONS[intent.vibe ?? ""] ??
+    "It's easy, balanced and ready to go.";
+  const newPiece = context?.newPieces?.find((p) => names.includes(p.toLowerCase()));
+  return `Go with the ${list}. ${reason}${newPiece ? ` Nice chance to wear your new ${newPiece.toLowerCase()}.` : ""}`;
 }

@@ -150,7 +150,10 @@ function callDemo(tool: string, args: Record<string, unknown>): unknown {
     case TOOLS.wardrobeAdd:
       return demoAddItem(args);
     case TOOLS.styleSuggest:
-      return demoSuggest(String(args.prompt), Number(args.limit) || 3);
+      return demoSuggest(String(args.prompt), Number(args.limit) || 3, {
+        hour: typeof (args.context as { hour?: unknown } | undefined)?.hour === "number" ? (args.context as { hour: number }).hour : null,
+        anchorId: typeof args.anchor_id === "string" ? args.anchor_id : null,
+      });
     case TOOLS.tryonCreate:
       return demoCreateTryOn(String(args.outfit_id));
     case TOOLS.jobGet:

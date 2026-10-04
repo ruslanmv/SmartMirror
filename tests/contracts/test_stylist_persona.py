@@ -135,3 +135,10 @@ def test_package_is_a_plain_zip_with_expected_entries():
         "manifest.json",
         "preview/card.json",
     ]
+
+
+def test_prompt_reads_moods_days_and_context():
+    prompt = json.loads((SOURCE / "blueprint" / "persona_agent.json").read_text())["system_prompt"]
+    for phrase in ('"Today"', "Love day", "Work day", "Lazy day", "Shopping day", "Day or night?", "at most one question",
+                   "Never describe, rate or guess at the owner's body"):
+        assert phrase in prompt, phrase

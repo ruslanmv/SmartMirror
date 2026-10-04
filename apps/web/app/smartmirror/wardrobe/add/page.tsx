@@ -1,13 +1,17 @@
 "use client";
 
 import { Button, Chip, Icon } from "@smartmirror/ui";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { QRCode } from "@/components/QRCode";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useToast } from "@/components/Toast";
 import { ApiError, api } from "@/lib/api";
+import { useDevice } from "@/lib/capabilities";
+import { readSettings } from "@/lib/settings";
 import type { DraftItem } from "@/lib/tools";
+import { speak } from "@/lib/voice";
 
 const CATEGORY_LABEL: Record<string, string> = {
   top: "Top",
@@ -27,7 +31,25 @@ const COMMON_COLORS = ["black", "white", "navy", "grey", "beige", "blue", "red",
  */
 export default function AddClothesPage() {
   const toast = useToast();
+  const router = useRouter();
+  const { runtime } = useDevice();
   const [queue, setQueue] = useState<DraftItem[] | null>(null);
+  // After a piece is confirmed the stylist says one line about it (and how to wear it).
+  const [pairing, setPairing] = useState<{ itemId: string; line: string } | null>(null);
+
+  const pairWith = useCallback(
+    async (itemId: string) => {
+      try {
+        const r = await api.suggest("everyday", 1, { anchorId: itemId });
+        if (!r.pairing_line) return;
+        setPairing({ itemId, line: r.pairing_line });
+        if (readSettings().speakReplies) speak(r.pairing_line, runtime);
+      } catch {
+        /* the piece is added either way; the line is a bonus */
+      }
+    },
+    [runtime],
+  );
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(0);
   const file = useRef<HTMLInputElement>(null);
@@ -91,6 +113,26 @@ export default function AddClothesPage() {
         </section>
 
         <section className="add-clothes__queue scroll-area" aria-live="polite" aria-label="Pieces to confirm">
+          {pairing && (
+            <div className="sm-panel stylist-pairing" role="status">
+              <Icon name="sparkle" />
+              <p>{pairing.line}</p>
+              <div className="outfit__actions">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() =>
+                    router.push(`/smartmirror/stylist?prompt=${encodeURIComponent("everyday")}&anchor=${encodeURIComponent(pairing.itemId)}&auto=1`)
+                  }
+                >
+                  Show me
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setPairing(null)}>
+                  Later
+                </Button>
+              </div>
+            </div>
+          )}
           {error ? (
             <p className="form-error">{error}</p>
           ) : queue === null ? (
@@ -109,9 +151,10 @@ export default function AddClothesPage() {
                 key={d.id}
                 draft={d}
                 autoFocus={i === 0}
-                onDone={(msg) => {
+                onDone={(msg, addedId) => {
                   toast(msg);
                   setQueue((q) => (q ? q.filter((x) => x.id !== d.id) : q));
+                  if (addedId) void pairWith(addedId);
                 }}
               />
             ))
@@ -159,7 +202,15 @@ function PhoneScan() {
   );
 }
 
-function DraftCard({ draft, autoFocus, onDone }: { draft: DraftItem; autoFocus: boolean; onDone: (msg: string) => void }) {
+function DraftCard({
+  draft,
+  autoFocus,
+  onDone,
+}: {
+  draft: DraftItem;
+  autoFocus: boolean;
+  onDone: (msg: string, addedId?: string) => void;
+}) {
   const s = draft.suggested;
   const [category, setCategory] = useState<string | null>(s.category);
   const [subcategory, setSubcategory] = useState<string | null>(s.subcategory);
@@ -177,8 +228,8 @@ function DraftCard({ draft, autoFocus, onDone }: { draft: DraftItem; autoFocus: 
     setBusy(true);
     setError(null);
     try {
-      await api.confirmGarment(draft.id, { category, ...(subcategory ? { subcategory } : {}), ...(color ? { color } : {}) });
-      onDone("Added to your wardrobe");
+      const added = await api.confirmGarment(draft.id, { category, ...(subcategory ? { subcategory } : {}), ...(color ? { color } : {}) });
+      onDone("Added to your wardrobe", added.id);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not confirm");
       setBusy(false);

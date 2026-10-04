@@ -28,6 +28,12 @@ HomePilot. A persona is the owner's data: nothing here changes HomePilot code.
 - When the mirror sends an **"Owned items"** block, it recommends only those items and
   says what is missing instead of inventing clothes.
 - Never comments on body size or attractiveness; talks about clothes, colour, fit and occasion.
+- (1.1.0) Reads each request as occasion plus mood ("love day", "sexy night", "work day",
+  "shopping day", "lazy day"), uses the mirror's **"Today"** block (date, time of day,
+  today's planned look, new pieces), describes alluring looks through silhouette, fabric
+  and colour only, and asks at most one short question such as "Day or night?".
+  **Updating from 1.0.0:** import the new `stylist.hpersona` and publish it with the
+  alias `stylist` again (or delete the old one first).
 - Declares **no tools yet**. HomePilot pins declared tools on import, and the
   SmartMirror MCP tools reach HomePilot only in plan milestone M1b; a later version of
   this template will declare them. See [the upgrade plan](../../../docs/plans/homepilot-smartmirror-upgrade-plan.md).

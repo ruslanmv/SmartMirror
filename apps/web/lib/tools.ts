@@ -38,6 +38,8 @@ export function findTool(name: string) {
 export interface WardrobeItem {
   id: string;
   category: string;
+  /** When the piece was added (newest pieces are mentioned to the stylist). */
+  created_at?: string | null;
   subcategory?: string | null;
   color?: string | null;
   material?: string | null;
@@ -73,6 +75,12 @@ export interface StyleSuggestResult {
   outfits: OutfitCandidate[];
   /** What the wardrobe could not fill for this request (stylist v2). */
   gaps?: WardrobeGap[];
+  /** The one clarifying question worth asking; each option carries the merged request. */
+  question?: { id: string; text: string; options: { label: string; prompt: string }[] } | null;
+  /** A follow-up to offer after the looks, e.g. "What am I missing?" on a shopping day. */
+  offer?: { id: string; text: string; label: string } | null;
+  /** One spoken line about a piece that was just added (anchor_id). */
+  pairing_line?: string | null;
 }
 
 export interface WardrobeGap {

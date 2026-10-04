@@ -47,6 +47,7 @@ def _item_dict(x: WardrobeItem) -> dict[str, Any]:
         "length": x.length,
         "metadata": x.metadata_json,
         "status": x.status,
+        "created_at": x.created_at.isoformat() if x.created_at else None,
     }
 
 
@@ -119,13 +120,25 @@ async def _wardrobe_add(args: dict[str, Any], db: Session) -> Any:
     return _item_dict(item)
 
 
+def _hour(value: Any) -> int | None:
+    try:
+        hour = int(value)
+    except (TypeError, ValueError):
+        return None
+    return hour if 0 <= hour <= 23 else None
+
+
 async def _style_suggest(args: dict[str, Any], db: Session) -> Any:
+    context = args.get("context") if isinstance(args.get("context"), dict) else {}
     req, outfits = suggest(
         db,
         profile_id=str(args.get("profile_id") or "local-user"),
         prompt=str(args.get("prompt") or ""),
         limit=int(args.get("limit") or 3),
+        hour=_hour(context.get("hour")),
+        anchor_id=str(args["anchor_id"]) if args.get("anchor_id") else None,
     )
+    intent = req.normalized_intent or {}
     return {
         "request_id": req.id,
         "normalized_intent": req.normalized_intent,
@@ -139,7 +152,12 @@ async def _style_suggest(args: dict[str, Any], db: Session) -> Any:
             }
             for o in outfits
         ],
-        "gaps": (req.normalized_intent or {}).get("gaps", []),
+        "gaps": intent.get("gaps", []),
+        # Conversation helpers: ask at most one question, offer one follow-up,
+        # and say one line about a piece that was just added.
+        "question": intent.get("question"),
+        "offer": intent.get("offer"),
+        "pairing_line": intent.get("pairing_line"),
     }
 
 
@@ -416,6 +434,12 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "profile_id": {"type": "string"},
                 "prompt": {"type": "string"},
                 "limit": {"type": "integer", "minimum": 1, "maximum": 8},
+                "context": {
+                    "type": "object",
+                    "description": "What the screen knows about now, e.g. {hour: 20, weekday: 'Saturday'}.",
+                    "properties": {"hour": {"type": "integer", "minimum": 0, "maximum": 23}, "weekday": {"type": "string"}},
+                },
+                "anchor_id": {"type": "string", "description": "Only looks that wear this owned piece (e.g. one just added)."},
             },
         },
         "handler": _style_suggest,

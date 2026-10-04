@@ -27,7 +27,7 @@ def test_dinner_is_polished_and_complete():
     top = looks("dinner date tonight")[0]
     assert top.item_ids[0] == "d1"
     assert {"s1", "o1", "x1"} <= set(top.item_ids)
-    assert "polished for the evening" in top.explanation
+    assert "romantic and polished for a date" in top.explanation
 
 
 def test_office_prefers_tailoring():
@@ -96,7 +96,8 @@ def client():
 def test_style_suggest_returns_titles_and_gaps(client):
     out = ok(call(client, "hp.smartmirror.style_suggest", {"profile_id": "p-v2", "prompt": "dinner date"}))
     assert out["outfits"][0]["title"] and out["gaps"] == []
-    assert out["normalized_intent"]["occasion"] == "evening"
+    assert out["normalized_intent"]["occasion"] == "date"
+    assert out["normalized_intent"]["vibe"] == "romantic"
 
 
 def test_sets_create_list_delete(client):

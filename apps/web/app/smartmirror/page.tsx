@@ -11,16 +11,10 @@ import { FrozenPhoto, SnapMirror } from "@/components/SnapMirror";
 import { useCameraStream } from "@/components/useCameraStream";
 import { useSettings } from "@/lib/settings";
 import { api } from "@/lib/api";
+import { ideasFor, planForToday } from "@/lib/day";
 import { useDevice } from "@/lib/capabilities";
 import { timeAgo, useCapture, useLooks } from "@/lib/use-local";
 
-const IDEAS = [
-  { label: "Dinner date", prompt: "An elegant outfit for a dinner date tonight" },
-  { label: "Office day", prompt: "Sharp but comfortable for the office" },
-  { label: "Weekend brunch", prompt: "Relaxed weekend brunch look" },
-  { label: "Cocktail party", prompt: "Something statement for a cocktail party" },
-  { label: "Travel day", prompt: "Comfortable layers for a travel day" },
-];
 
 export default function HomePage() {
   const router = useRouter();
@@ -30,6 +24,9 @@ export default function HomePage() {
   const looks = useLooks();
   const { capabilities, runtime, hasNativeBridge, hasWebCamera, ready: deviceReady } = useDevice();
   const [pieces, setPieces] = useState<number | null>(null);
+  const [todayPlan, setTodayPlan] = useState<{ setId: string; text: string } | null>(null);
+  // Ideas follow the day: work things on weekday mornings, a love day or a sexy night on Friday and Saturday evenings.
+  const ideas = ideasFor(now ?? new Date());
 
   // Live mirror: it is a mirror, so the real-time camera is on by default.
   // Turn it off in Settings (or with the button below the arch).
@@ -92,8 +89,15 @@ export default function HomePage() {
   useEffect(() => {
     api
       .wardrobe()
-      .then((items) => setPieces(items.length))
-      .catch(() => setPieces(null));
+      .then((items) => {
+        setPieces(items.length);
+        // A saved week plan with today's name becomes the first idea.
+        return api.sets().then((sets) => {
+          const plan = planForToday(sets, items, new Date());
+          setTodayPlan(plan ? { setId: plan.set.id, text: plan.text } : null);
+        });
+      })
+      .catch(() => setPieces((p) => p));
   }, [capabilities.ollabridgeOnline, capabilities.homepilotOnline]);
 
   const directCamera = capabilities.camera && (runtime !== "echo-shell" || hasNativeBridge) && runtime !== "alexa-html";
@@ -195,7 +199,12 @@ export default function HomePage() {
 
         <div className="home__ideas">
           <span className="home__ideas-label">Quick ideas</span>
-          {IDEAS.map((idea) => (
+          {todayPlan && (
+            <Chip pressed onClick={() => router.push(`/smartmirror/looks?set=${encodeURIComponent(todayPlan.setId)}`)} title={todayPlan.text}>
+              Today’s plan
+            </Chip>
+          )}
+          {ideas.map((idea) => (
             <Chip
               key={idea.label}
               onClick={() => router.push(`/smartmirror/stylist?prompt=${encodeURIComponent(idea.prompt)}&auto=1`)}

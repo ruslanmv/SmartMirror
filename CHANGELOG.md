@@ -9,6 +9,15 @@ All notable changes to SmartMirror will be documented here.
   (missing `gradle.properties`) and passes Android lint.
 
 ### Added
+- Stylist understands moods and the day: every request is read as occasion × mood
+  ("love day" → romantic date, "sexy night" → alluring evening, "work day", "shopping day",
+  "lazy day", "interview"), with the screen's time of day; it asks at most one question
+  ("Day or night?") as answer chips, remembers the conversation, and gets a "Today" note
+  (date, part of day, today's planned look, pieces added this week). Home ideas follow
+  the day (Love day and Sexy night on Friday and Saturday evenings), a saved plan shows
+  as "Today's plan", and adding a piece gets one line on how to wear it. One shared
+  vocabulary (`packages/contracts/stylist-lexicon.json`) for the PC engine and the demo.
+  Stylist persona 1.1.0: re-import `stylist.hpersona` in HomePilot.
 - Issue fixes (#2–#5) and the device probe for #1: signed, expiring media links
   (`/v1/media/{id}`, presigned S3, tool `hp.smartmirror.media_link`); a private-bucket
   check that creates the MinIO bucket and refuses public policies; a pixel cap against

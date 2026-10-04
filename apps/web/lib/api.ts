@@ -1,5 +1,6 @@
 "use client";
 
+import type { DayContext } from "./day";
 import { downscaleImage, type DeviceCapabilities } from "@smartmirror/device-capabilities";
 
 import {
@@ -93,7 +94,16 @@ export const api = {
     callTool<{ id: string; purchased: boolean }>(TOOLS.shopMarkPurchased, { candidate_id: candidateId }),
   /** Everything SmartMirror keeps for this profile on the owner's PC. */
   deleteMyData: () => callTool<{ deleted: Record<string, number> }>(TOOLS.profileDelete, { confirm: "DELETE" }),
-  suggest: (prompt: string, limit = 3) => callTool<StyleSuggestResult>(TOOLS.styleSuggest, { prompt, limit }),
+  /** Outfits for a request, read with the screen's local time; `anchorId` keeps a given piece in every look. */
+  suggest: (prompt: string, limit = 3, opts: { anchorId?: string } = {}) => {
+    const now = new Date();
+    return callTool<StyleSuggestResult>(TOOLS.styleSuggest, {
+      prompt,
+      limit,
+      context: { hour: now.getHours(), weekday: now.toLocaleDateString("en-GB", { weekday: "long" }) },
+      ...(opts.anchorId ? { anchor_id: opts.anchorId } : {}),
+    });
+  },
   createTryOn: (outfitId: string, bodyCaptureRef: string, instruction = "") =>
     callTool<TryOnCreated>(TOOLS.tryonCreate, { outfit_id: outfitId, body_capture_ref: bodyCaptureRef, instruction }),
   job: (jobId: string) => callTool<JobStatus>(TOOLS.jobGet, { job_id: jobId }),
@@ -157,6 +167,9 @@ export const api = {
     items?: { id: string; name: string; category?: string; color?: string }[];
     history?: { role: "user" | "assistant"; content: string }[];
     model?: string | null;
+    /** The "Today" note: date, part of day, today's planned look, new pieces. */
+    context?: DayContext | null;
+    hour?: number;
   }) =>
     request<{ reply: string; persona: { id: string; name: string }; grounded: boolean }>("/api/stylist/chat", {
       method: "POST",

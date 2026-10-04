@@ -1,0 +1,22 @@
+{
+  "description": "How the stylist must read these requests. Both engines (Python and the web demo) are tested against this table. hour = the screen's local hour, null when unknown. question = the one clarifying question expected, or null.",
+  "cases": [
+    { "prompt": "love day", "hour": 10, "occasion": "date", "vibe": "romantic", "question": null },
+    { "prompt": "valentine's dinner", "hour": 19, "occasion": "date", "vibe": "romantic", "question": null },
+    { "prompt": "sexy day", "hour": 20, "occasion": "evening", "vibe": "alluring", "question": null },
+    { "prompt": "sexy day", "hour": 9, "occasion": null, "vibe": "alluring", "question": null },
+    { "prompt": "something sexy", "hour": 10, "occasion": null, "vibe": "alluring", "question": "day_or_night" },
+    { "prompt": "something sexy", "hour": 21, "occasion": "evening", "vibe": "alluring", "question": null },
+    { "prompt": "something sexy tonight", "hour": 10, "occasion": "evening", "vibe": "alluring", "question": null },
+    { "prompt": "something sexy daytime", "hour": 10, "occasion": null, "vibe": "alluring", "question": null },
+    { "prompt": "work day", "hour": 8, "occasion": "office", "vibe": null, "question": null },
+    { "prompt": "job interview tomorrow", "hour": 18, "occasion": "interview", "vibe": "confident", "question": null },
+    { "prompt": "shopping day", "hour": 11, "occasion": "shopping", "vibe": null, "question": null },
+    { "prompt": "lazy day", "hour": 11, "occasion": "home", "vibe": "relaxed", "question": null },
+    { "prompt": "relaxed weekend brunch", "hour": 11, "occasion": "casual", "vibe": "relaxed", "question": null },
+    { "prompt": "romantic evening", "hour": 19, "occasion": "evening", "vibe": "romantic", "question": null },
+    { "prompt": "Dinner — for date night, sexy feel, in black", "hour": 19, "occasion": "date", "vibe": "alluring", "question": null },
+    { "prompt": "bold party look", "hour": 21, "occasion": "evening", "vibe": "bold", "question": null },
+    { "prompt": "what should I wear", "hour": 8, "occasion": null, "vibe": null, "question": null }
+  ]
+}

@@ -12,13 +12,20 @@ import { useToast } from "@/components/Toast";
 import { useSpeech } from "@/components/useSpeech";
 import { ApiError, api } from "@/lib/api";
 import { useDevice } from "@/lib/capabilities";
+import { dayContext } from "@/lib/day";
 import { readSettings, useSettings } from "@/lib/settings";
 import { getOutfitSession, saveLook, saveOutfitSession, type OutfitSession } from "@/lib/storage";
+
+type Turn = { role: "user" | "assistant"; content: string };
+type Question = NonNullable<StyleSuggestResult["question"]>;
+type Offer = NonNullable<StyleSuggestResult["offer"]>;
+import type { OutfitSetView, StyleSuggestResult } from "@/lib/tools";
 import { useLooks } from "@/lib/use-local";
 import { speak } from "@/lib/voice";
 
-const OCCASIONS = ["Dinner", "Date night", "Office", "Brunch", "Party", "Wedding guest", "Travel", "Weekend"];
-const MOODS = ["Elegant", "Relaxed", "Minimal", "Bold", "Sexy", "Sporty"];
+// Days and moods the stylist understands (packages/contracts/stylist-lexicon.json).
+const OCCASIONS = ["Work day", "Love day", "Shopping day", "Lazy day", "Dinner", "Party", "Interview", "Brunch", "Travel"];
+const MOODS = ["Romantic", "Sexy", "Confident", "Relaxed", "Bold", "Elegant", "Minimal"];
 const COLORS = ["Black", "Ivory", "Beige", "Navy", "Emerald", "Burgundy"];
 
 export default function StylistPage() {
@@ -48,7 +55,20 @@ function Stylist() {
   const [note, setNote] = useState<StylistNoteData | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
+  // The conversation so far (sent to the persona), the one question it asked, and a follow-up offer.
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [question, setQuestion] = useState<(Question & { base: string }) | null>(null);
+  const [offer, setOffer] = useState<Offer | null>(null);
+  const [showGaps, setShowGaps] = useState(false);
+  const sets = useRef<OutfitSetView[]>([]);
   const autoRan = useRef(false);
+
+  useEffect(() => {
+    api
+      .sets()
+      .then((s) => (sets.current = s))
+      .catch(() => undefined); // plans are optional context
+  }, []);
 
   useEffect(() => {
     if (!params.get("prompt")) setSession(getOutfitSession());
@@ -65,20 +85,27 @@ function Stylist() {
   );
 
   const run = useCallback(
-    async (text: string) => {
-      const full = composed(text);
+    async (text: string, opts: { raw?: boolean } = {}) => {
+      // An answer to the stylist's question continues the same request.
+      const full = opts.raw ? text : question ? `${question.base} ${text.trim()}` : composed(text);
+      const anchorId = params.get("anchor") ?? undefined;
       setBusy(true);
       setError(null);
       setNote(null);
       setNoteError(null);
+      setQuestion(null);
+      setOffer(null);
+      setShowGaps(false);
       // 1) Outfits from the owner's real wardrobe (MCP tools).
       let next: OutfitSession | null = null;
       let toolError: ApiError | null = null;
       try {
-        const [result, items] = await Promise.all([api.suggest(full, 3), api.wardrobe()]);
+        const [result, items] = await Promise.all([api.suggest(full, 3, { anchorId }), api.wardrobe()]);
         next = { prompt: full, outfits: result.outfits, items, gaps: result.gaps ?? [] };
         setSession(next);
         saveOutfitSession(next);
+        setQuestion(result.question ? { ...result.question, base: full } : null);
+        setOffer(result.offer ?? null);
       } catch (err) {
         toolError = err instanceof ApiError ? err : new ApiError("Something went wrong", 500, "error");
       } finally {
@@ -92,7 +119,16 @@ function Stylist() {
       // Read at call time: auto-run (Alexa, quick ideas) can fire before settings hydrate.
       const settings = readSettings();
       try {
-        const r = await api.stylistChat({ prompt: full, items: groundingFor(next), model: settings.stylistModel });
+        const now = new Date();
+        const r = await api.stylistChat({
+          prompt: full,
+          items: groundingFor(next),
+          model: settings.stylistModel,
+          history: turns.slice(-6),
+          context: dayContext(now, sets.current, next?.items ?? []),
+          hour: now.getHours(),
+        });
+        setTurns((t) => [...t, { role: "user" as const, content: full }, { role: "assistant" as const, content: r.reply }].slice(-12));
         setNote({ ...r, toolsDown: Boolean(toolError) });
         if (toolError) setSession(null);
         if (settings.speakReplies) speak(r.reply, runtime);
@@ -105,7 +141,7 @@ function Stylist() {
         setThinking(false);
       }
     },
-    [composed, runtime],
+    [composed, runtime, question, turns, params],
   );
 
   useEffect(() => {
@@ -226,6 +262,34 @@ function Stylist() {
                 onReplay={note ? () => speak(note.reply, runtime) : undefined}
               />
             )}
+            {!error && !busy && (question || offer) && (
+              <div className="chip-group stylist-followup" role="group" aria-label={question?.text ?? offer!.text}>
+                {/* The stylist already asked the question out loud; the chips are the answers. */}
+                <span className="chip-group__label">{question ? "Your answer" : offer!.text}</span>
+                {question
+                  ? question.options.map((o, i) => (
+                      <Chip key={o.label} onClick={() => void run(o.prompt, { raw: true })} data-autofocus={i === 0 || undefined}>
+                        {o.label}
+                      </Chip>
+                    ))
+                  : offer && (
+                      <Chip pressed={showGaps} onClick={() => setShowGaps((v) => !v)}>
+                        {offer.label}
+                      </Chip>
+                    )}
+              </div>
+            )}
+            {showGaps && session && (
+              (session.gaps ?? []).length ? (
+                settings.shoppingSuggestions ? (
+                  <CompleteTheLook gaps={session.gaps ?? []} />
+                ) : (
+                  <p className="sm-muted">Missing for this look: {(session.gaps ?? []).map((g) => g.query).join(", ")}.</p>
+                )
+              ) : (
+                <p className="sm-muted">Nothing is missing: your wardrobe covers this one.</p>
+              )
+            )}
             {error ? (
               <div className="empty">
                 <div className="empty__icon">
@@ -271,7 +335,7 @@ function Stylist() {
                     }}
                   />
                 ))}
-                {settings.shoppingSuggestions && <CompleteTheLook gaps={session.gaps ?? []} />}
+                {settings.shoppingSuggestions && !showGaps && <CompleteTheLook gaps={session.gaps ?? []} />}
               </>
             ) : note?.toolsDown ? null : session ? (
               <div className="empty">

@@ -1,0 +1,32 @@
+{
+  "schema_version": "smartmirror.stylist-lexicon/v1",
+  "description": "Words the stylist understands, shared by the Python engine and the web demo so both read a request the same way. First match wins within each list, so specific entries come first. Words are matched on word boundaries, case-insensitive.",
+  "occasions": [
+    { "id": "interview", "words": ["interview", "job interview"], "vibe": "confident" },
+    { "id": "date", "words": ["love day", "date night", "date", "valentine", "valentines", "valentine's", "anniversary", "romantic dinner", "first date"], "vibe": "romantic" },
+    { "id": "office", "words": ["work day", "workday", "office", "work", "meeting", "presentation", "business", "conference"] },
+    { "id": "shopping", "words": ["shopping day", "shopping", "going shopping", "mall", "market"] },
+    { "id": "home", "words": ["lazy day", "lazy", "stay home", "staying home", "at home", "home day", "netflix", "sofa", "couch"], "vibe": "relaxed" },
+    { "id": "active", "words": ["gym", "workout", "run", "running", "yoga", "hike", "hiking", "sport", "sports"], "vibe": "sporty" },
+    { "id": "travel", "words": ["travel day", "travel", "flight", "airport", "trip", "train", "road trip"] },
+    { "id": "evening", "words": ["party", "night out", "cocktail", "club", "clubbing", "gala", "wedding", "dinner", "theatre", "opera", "concert", "celebration", "evening"] },
+    { "id": "casual", "words": ["weekend", "brunch", "casual", "coffee", "errands", "errand", "picnic", "lunch"] }
+  ],
+  "vibes": [
+    { "id": "alluring", "words": ["sexy", "sexy day", "sexy night", "hot", "flirty", "seductive", "sultry", "alluring", "daring"] },
+    { "id": "romantic", "words": ["romantic", "love", "lovely", "soft", "dreamy", "sweet"] },
+    { "id": "confident", "words": ["confident", "power", "powerful", "boss", "sharp", "strong"] },
+    { "id": "relaxed", "words": ["relaxed", "comfy", "comfortable", "cosy", "cozy", "chill", "easy"] },
+    { "id": "bold", "words": ["bold", "statement", "loud", "colourful", "colorful", "fun"] },
+    { "id": "playful", "words": ["playful", "cute", "youthful", "quirky"] },
+    { "id": "minimal", "words": ["minimal", "minimalist", "simple", "clean", "understated"] },
+    { "id": "elegant", "words": ["elegant", "classy", "chic", "polished", "sophisticated", "glam", "glamorous"] },
+    { "id": "sporty", "words": ["sporty", "athletic", "athleisure"] }
+  ],
+  "times": {
+    "evening": ["tonight", "night", "this evening", "later tonight"],
+    "day": ["daytime", "this morning", "morning", "afternoon", "lunchtime"]
+  },
+  "evening_from_hour": 17,
+  "evening_until_hour": 5
+}

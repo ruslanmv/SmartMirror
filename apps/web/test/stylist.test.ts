@@ -136,7 +136,7 @@ describe("/api/stylist/chat", () => {
   it("demo backend answers from the grounding items", async () => {
     vi.stubEnv("SMARTMIRROR_BACKEND", "demo");
     const res = await chat(req({ prompt: "dinner date", items: [{ id: "a", name: "Black dress" }] }));
-    expect(await res.json()).toMatchObject({ reply: "Go with the black dress. It reads polished for the evening.", grounded: true });
+    expect(await res.json()).toMatchObject({ reply: "Go with the black dress. Soft, romantic and polished for a date.", grounded: true });
   });
 
   it("ollabridge: talks to the stylist persona with the device token", async () => {

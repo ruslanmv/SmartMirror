@@ -1,5 +1,6 @@
 import "server-only";
 
+import { clarification, offerFor, parseIntent } from "@/lib/intent";
 import type {
   DraftItem,
   JobStatus,
@@ -106,7 +107,12 @@ export function demoConfirm(args: Record<string, unknown>): WardrobeItem {
     category,
     subcategory: str("subcategory"),
     color: str("color"),
-    metadata: { name: str("name") ?? d.name, image_url: d.image_url ?? undefined },
+    // A confirmed piece is named after what the owner confirmed ("navy skirt"), not the draft placeholder.
+    metadata: {
+      name: str("name") ?? ([str("color"), str("subcategory") ?? category].filter(Boolean).join(" ") || d.name),
+      image_url: d.image_url ?? undefined,
+    },
+    created_at: new Date().toISOString(),
   };
   added.push(item);
   return item;
@@ -127,70 +133,126 @@ type Slot = "dress" | "top" | "bottom" | "layer" | "shoes" | "bag";
 function slotOf(item: WardrobeItem): Slot {
   const c = item.category.toLowerCase();
   if (/dress|jumpsuit/.test(c)) return "dress";
-  if (/skirt|pant|jean|trouser|short/.test(c)) return "bottom";
-  if (/blazer|coat|jacket|cardigan/.test(c)) return "layer";
+  // Canonical categories from the review queue first ("bottom", "outerwear").
+  if (/bottom|skirt|pant|jean|trouser|short/.test(c)) return "bottom";
+  if (/outerwear|blazer|coat|jacket|cardigan/.test(c)) return "layer";
   if (/shoe|heel|boot|sneaker|loafer|sandal/.test(c)) return "shoes";
   if (/bag|clutch|tote/.test(c)) return "bag";
   return "top";
 }
 
-const OCCASIONS: Record<string, string[]> = {
-  dinner: ["dinner", "restaurant", "tonight"],
-  date: ["date", "romantic"],
-  party: ["party", "cocktail", "club", "celebration"],
-  wedding: ["wedding", "ceremony", "gala"],
-  office: ["office", "work", "meeting", "interview", "business"],
-  brunch: ["brunch", "lunch", "cafe"],
-  weekend: ["weekend", "errand", "saturday", "sunday"],
-  travel: ["travel", "flight", "airport", "trip"],
-  casual: ["casual", "relaxed", "comfortable", "everyday"],
-  evening: ["evening", "night", "elegant", "sexy"],
+// The sample wardrobe tags pieces with these words; each lexicon occasion maps onto them.
+const OCCASION_TAGS: Record<string, string[]> = {
+  date: ["date", "dinner", "evening"],
+  evening: ["dinner", "party", "evening", "wedding"],
+  office: ["office"],
+  interview: ["office"],
+  casual: ["weekend", "brunch", "casual"],
+  shopping: ["weekend", "casual", "travel"],
+  home: ["casual", "weekend"],
+  active: ["casual"],
+  travel: ["travel"],
+};
+
+// Vibe → what carries it in the sample wardrobe (names/categories), its colours, and what fights it.
+const VIBE_PREFS: Record<string, { like: RegExp; colors: string[]; avoid?: RegExp }> = {
+  alluring: { like: /slip|pencil|heel|slingback|cami|leather|wrap/, colors: ["black", "red", "burgundy"], avoid: /knit|tee|sneaker|trench/ },
+  romantic: { like: /dress|blouse|pleated|slingback|cami|wrap/, colors: ["cream", "ivory", "pink", "burgundy", "red", "emerald"], avoid: /sneaker|tee/ },
+  confident: { like: /blazer|tailored|trench|loafer|boot|pencil/, colors: ["navy", "charcoal", "black"], avoid: /tee|sneaker/ },
+  relaxed: { like: /tee|t-shirt|knit|jean|sneaker|sundress|tote/, colors: [], avoid: /heel|slingback|slip|pencil|blazer/ },
+  bold: { like: /wrap|cami|leather|pencil/, colors: ["emerald", "burgundy", "red", "gold"] },
+  playful: { like: /sundress|pleated|sneaker|tee/, colors: ["pink", "red", "cream"] },
+  minimal: { like: /tee|tailored|trench|loafer/, colors: ["black", "white", "navy", "beige", "camel"] },
+  elegant: { like: /slip|blouse|slingback|blazer|trench|clutch|pleated/, colors: ["black", "ivory", "navy", "camel"], avoid: /sneaker|tee/ },
+  sporty: { like: /sneaker|tee|jean/, colors: [], avoid: /heel|slingback|blazer/ },
 };
 
 const COLORS = ["black", "white", "ivory", "cream", "beige", "camel", "brown", "red", "burgundy", "pink", "green", "emerald", "blue", "navy", "denim", "grey", "charcoal", "gold"];
 
-export function normalizeIntent(prompt: string) {
+export function normalizeIntent(prompt: string, hour: number | null = null) {
   const text = prompt.toLowerCase();
-  const occasions = Object.entries(OCCASIONS)
-    .filter(([, words]) => words.some((w) => text.includes(w)))
-    .map(([k]) => k);
+  const read = parseIntent(prompt, hour);
   const colors = COLORS.filter((c) => new RegExp(`\\b${c}\\b`).test(text));
   const categories = ["dress", "skirt", "jeans", "pants", "blazer", "jacket", "coat", "heels", "boots", "sneakers"].filter((c) =>
     text.includes(c),
   );
-  return { occasions: occasions.length ? occasions : ["casual"], colors, categories, raw: prompt };
+  return { ...read, colors, categories, raw: prompt };
 }
 
 function itemScore(item: WardrobeItem, intent: ReturnType<typeof normalizeIntent>): number {
-  const occ = (item.metadata?.occasions as string[] | undefined) ?? [];
+  const tags = (item.metadata?.occasions as string[] | undefined) ?? [];
+  const words = `${item.category} ${item.subcategory ?? ""} ${item.metadata?.name ?? ""}`.toLowerCase();
+  const color = item.color?.toLowerCase() ?? "";
   let s = 0.2;
-  s += 0.18 * intent.occasions.filter((o) => occ.includes(o)).length;
-  if (item.color && intent.colors.includes(item.color.toLowerCase())) s += 0.3;
+  if (intent.occasion) s += 0.18 * (OCCASION_TAGS[intent.occasion] ?? []).filter((o) => tags.includes(o)).length;
+  const vibe = intent.vibe ? VIBE_PREFS[intent.vibe] : undefined;
+  if (vibe) {
+    if (vibe.like.test(words)) s += 0.25;
+    if (vibe.colors.includes(color)) s += 0.15;
+    if (vibe.avoid?.test(words)) s -= 0.3;
+  }
+  if (intent.occasion && ["shopping", "home", "travel", "active"].includes(intent.occasion) && /heel|slingback/.test(words)) s -= 0.4;
+  if (color && intent.colors.includes(color)) s += 0.3;
   if (intent.categories.some((c) => item.category.toLowerCase().includes(c))) s += 0.35;
   return s;
 }
 
 const TITLES: Record<string, string[]> = {
-  dinner: ["Candlelit dinner", "Quiet luxury", "After-dark polish"],
-  date: ["Date-night ease", "Effortless allure", "Soft romance"],
-  party: ["Cocktail hour", "Statement night", "Dance-floor ready"],
-  wedding: ["Guest of honour", "Garden ceremony", "Celebration chic"],
+  alluring: ["After-dark allure", "Silk and shine", "Confident lines"],
+  romantic: ["Soft romance", "Love-day ease", "Candlelit"],
+  date: ["Date-night ease", "Soft romance", "Candlelit dinner"],
+  evening: ["Evening elegance", "Night edit", "Cocktail hour"],
   office: ["Boardroom sharp", "Modern tailoring", "Desk to dinner"],
-  brunch: ["Sunday brunch", "Light and easy", "Café terrace"],
-  weekend: ["Weekend uniform", "Off-duty edit", "City stroll"],
+  interview: ["First impression", "Quiet authority", "Sharp and steady"],
+  shopping: ["City stroll", "All-day walker", "Easy layers"],
+  home: ["Cosy day in", "Soft and slow", "Sofa chic"],
+  active: ["Ready to move", "Active ease", "Off to train"],
   travel: ["Carry-on classic", "Jet-set layers", "Arrival ready"],
   casual: ["Everyday easy", "Relaxed refined", "Off-duty edit"],
-  evening: ["Evening elegance", "Night edit", "Moonlit minimal"],
+  bold: ["Statement night", "Colour first", "Turn heads"],
+  confident: ["Power edit", "Sharp and steady", "Boss mode"],
 };
 
-export function demoSuggest(prompt: string, limit = 3): StyleSuggestResult {
-  const intent = normalizeIntent(prompt);
+const REASONS: Record<string, string> = {
+  date: "romantic and polished for a date",
+  evening: "polished for the evening",
+  office: "sharp enough for work",
+  interview: "composed and sharp for an interview",
+  shopping: "easy to walk in all day",
+  home: "soft and comfortable for a day in",
+  active: "ready to move",
+  travel: "comfortable for a long day",
+  casual: "relaxed and easy",
+};
+const VIBE_REASONS: Record<string, string> = {
+  alluring: "fitted, a little daring, with confident lines",
+  romantic: "soft and romantic",
+  confident: "sharp and confident",
+  relaxed: "relaxed and easy",
+  bold: "bold, with a statement",
+  playful: "playful and light",
+  minimal: "clean and minimal",
+  elegant: "elegant and polished",
+  sporty: "sporty and ready to move",
+};
+
+export function demoSuggest(
+  prompt: string,
+  limit = 3,
+  opts: { hour?: number | null; anchorId?: string | null } = {},
+): StyleSuggestResult {
+  const intent = normalizeIntent(prompt, opts.hour ?? null);
   const items = demoWardrobe();
-  const bySlot = (slot: Slot) =>
-    items
+  const anchor = opts.anchorId ? items.find((i) => i.id === opts.anchorId) : undefined;
+  const bySlot = (slot: Slot) => {
+    const ranked = items
       .filter((i) => slotOf(i) === slot)
       .map((i) => ({ i, s: itemScore(i, intent) }))
       .sort((a, b) => b.s - a.s);
+    // A piece the owner just added goes first in its slot.
+    if (anchor && slotOf(anchor) === slot) ranked.sort((a, b) => Number(b.i.id === anchor.id) - Number(a.i.id === anchor.id));
+    return ranked;
+  };
 
   const dresses = bySlot("dress");
   const tops = bySlot("top");
@@ -207,23 +269,32 @@ export function demoSuggest(prompt: string, limit = 3): StyleSuggestResult {
     if (t && b) bases.push([t, b]);
   }
 
+  const wantsBag = ["evening", "date", "shopping"].includes(intent.occasion ?? "") || (intent.vibe === "alluring" && intent.time !== "day");
   const outfits = bases
     .map((base, idx) => {
       const pieces = [...base];
-      const layer = layers[idx % Math.max(1, layers.length)];
-      if (layer && layer.s > 0.35) pieces.push(layer);
-      const shoe = shoes[idx % Math.min(2, Math.max(1, shoes.length))];
-      if (shoe) pieces.push(shoe);
+      const layer = anchor && slotOf(anchor) === "layer" ? layers[0] : layers[idx % Math.max(1, layers.length)];
+      if (layer && (layer.s > 0.35 || layer.i.id === anchor?.id)) pieces.push(layer);
+      if (intent.occasion !== "home") {
+        const shoe = anchor && slotOf(anchor) === "shoes" ? shoes[0] : shoes[idx % Math.min(2, Math.max(1, shoes.length))];
+        if (shoe) pieces.push(shoe);
+      }
       const bag = bags[0];
-      if (bag && bag.s > 0.3) pieces.push(bag);
+      if (bag && (bag.i.id === anchor?.id || (wantsBag && bag.s > 0.3))) pieces.push(bag);
       const score = Math.min(0.99, pieces.reduce((a, p) => a + p.s, 0) / pieces.length + 0.35);
       return { pieces, score };
     })
+    .filter(({ pieces }) => !anchor || pieces.some((p) => p.i.id === anchor.id))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 
-  const occasion = intent.occasions[0] ?? "casual";
-  const titles = TITLES[occasion] ?? TITLES.casual!;
+  const titles = TITLES[intent.vibe ?? ""] ?? TITLES[intent.occasion ?? ""] ?? TITLES.casual!;
+  const occReason = intent.occasion ? REASONS[intent.occasion] : undefined;
+  const vibeReason = intent.vibe ? VIBE_REASONS[intent.vibe] : undefined;
+  const reason =
+    occReason && vibeReason && !occReason.includes(vibeReason) && !vibeReason.includes(occReason) && !occReason.startsWith(vibeReason.split(" ")[0]!)
+      ? `${vibeReason}, ${occReason}`
+      : (occReason ?? vibeReason ?? "balanced and wearable");
   const stamp = Date.now().toString(36);
 
   const result: OutfitCandidate[] = outfits.map(({ pieces, score }, idx) => {
@@ -236,7 +307,7 @@ export function demoSuggest(prompt: string, limit = 3): StyleSuggestResult {
       title: titles[idx % titles.length],
       item_ids: pieces.map((p) => p.i.id),
       score: Math.round(score * 100) / 100,
-      explanation: `${/^[aeiou]/.test(lead) ? "An" : "A"} ${lead} anchors the look${rest.length ? `, finished with ${rest.slice(0, -1).join(", ")}${rest.length > 1 ? " and " : ""}${rest.at(-1)}` : ""}. Balanced for ${occasion === "casual" ? "an easy day" : `a ${occasion}`}.${colorNote}`,
+      explanation: `${/^[aeiou]/.test(lead) ? "An" : "A"} ${lead} anchors the look${rest.length ? `, finished with ${rest.slice(0, -1).join(", ")}${rest.length > 1 ? " and " : ""}${rest.at(-1)}` : ""}: ${reason}.${colorNote}`,
     };
   });
 
@@ -245,7 +316,28 @@ export function demoSuggest(prompt: string, limit = 3): StyleSuggestResult {
     .filter((c) => new RegExp(`\\b${c}`).test(intent.raw.toLowerCase()) && !items.some((i) => i.category === c || i.subcategory === c))
     .map((c) => ({ slot: c, category: c, query: [intent.colors[0], c].filter(Boolean).join(" ") }));
 
-  return { request_id: `demo_style_${stamp}`, normalized_intent: intent, outfits: result, gaps };
+  const partner = result[0]?.item_ids.map((id) => items.find((i) => i.id === id)).find((i) => i && i.id !== anchor?.id);
+  const spoken = (i: WardrobeItem) => {
+    const broad = ["top", "bottom", "outerwear", "accessory"].includes(i.category) && !i.subcategory;
+    const plain = [i.color, i.subcategory ?? (broad ? "piece" : i.category)].filter(Boolean).join(" ");
+    const name = i.metadata?.name;
+    return (name && name.toLowerCase() !== i.category.toLowerCase() ? name : plain).toLowerCase();
+  };
+  const pairing_line = anchor
+    ? partner
+      ? `Nice, your new ${spoken(anchor)}. It works with your ${spoken(partner)}; want to see the whole look?`
+      : `Nice, your new ${spoken(anchor)} is in your wardrobe.`
+    : null;
+
+  return {
+    request_id: `demo_style_${stamp}`,
+    normalized_intent: intent,
+    outfits: result,
+    gaps,
+    question: clarification(prompt, intent),
+    offer: offerFor(intent),
+    pairing_line,
+  };
 }
 
 const DEMO_JOB_SECONDS = 9;
