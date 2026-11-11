@@ -58,6 +58,69 @@ pnpm install
 pnpm dev        # http://localhost:3000 (demo backend with a sample wardrobe)
 ```
 
+Open [http://localhost:3000/smartmirror](http://localhost:3000/smartmirror).
+With no HomePilot URL configured, the BFF answers from a fixed sample
+wardrobe, so every screen is clickable. The header shows **Demo data**.
+Photos you take stay in this browser. A try-on in this mode is a styled
+overlay on your photo, not a Grok image. A real clothing swap runs only
+after this UI is paired with HomePilot and OllaBridge Cloud, and only when
+`SMARTMIRROR_GROK_IMAGINE` is on. See
+[`docs/architecture/grok-tryon-haul.md`](docs/architecture/grok-tryon-haul.md).
+
+### Home
+
+The home screen is the mirror. The arch is the live view, or a placeholder
+until a photo exists. The four actions are the whole product: ask the
+stylist, open the wardrobe, take a photo, and reopen a saved look. Quick
+ideas fill the stylist prompt (Dinner, Work day, and the rest).
+
+![Home screen: ask the stylist, open the wardrobe, take a photo, or reopen a saved look](docs/screenshots/home.png)
+
+### Wardrobe
+
+**My wardrobe** lists pieces stored for this profile. In the demo those are
+the sample clothes (silk slip dress, charcoal blazer, and so on). Filters
+count tops, bottoms, dresses, outerwear, shoes, and bags. **Add clothes**
+takes a garment photo. **Add by hand** records a piece with no photo, which
+the stylist can still name but cannot send to a pixel try-on.
+
+![Wardrobe grid of the sample pieces, filtered by category](docs/screenshots/wardrobe.png)
+
+### Stylist
+
+**Ask your stylist** takes one sentence about the moment. Suggestions use
+only pieces you own. Each look names the garments, a match score, and two
+actions: **Try it on** and **Save look**. In the demo the answer is labelled
+**Stylist (demo)** and comes from the local sample ranker. On a paired
+HomePilot the same screen calls the published `stylist` persona through
+OllaBridge.
+
+![Stylist suggestions for dinner, each look built from owned pieces](docs/screenshots/stylist.png)
+
+### Try-on
+
+**Try it on** opens the look next to your photo. **Start try-on** uploads
+that photo to your HomePilot and queues `hp.smartmirror.tryon_create`. In
+the demo there is no HomePilot, so after a short wait the screen keeps your
+photo, floats the garment tiles on it, and says the overlay is a preview.
+Connect HomePilot to render a real swap. With Grok Imagine enabled, that
+swap sends your photo plus up to four garment photos through OllaBridge
+Cloud. Amazon links stay links: a product page has no pixels to try on.
+
+![Try-on ready to start, with the evening look beside the photo](docs/screenshots/tryon.png)
+
+![Demo try-on: the photo stays, and the chosen pieces sit on top as a preview](docs/screenshots/tryon-preview.png)
+
+### Settings
+
+Settings cover the mirror, who answers, and shopping. **Live mirror** shows
+the arch on the home screen when this device has a camera. **Persona**
+picks Automatic or the demo stylist. **Shopping suggestions** is off until
+`SMARTMIRROR_SHOPPING=linkout`. A suggestion is a link and a QR code for
+your phone. The mirror does not fetch Amazon pictures.
+
+![Settings for the live mirror, the stylist persona, and shopping links](docs/screenshots/settings.png)
+
 ## Repository status
 
 This repository is an implementation scaffold, not a finished production release. The current code provides the integration contracts and a working development API so HomePilot/OllaBridge integration can be exercised before the advanced ML pipelines are added.
