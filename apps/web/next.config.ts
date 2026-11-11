@@ -15,6 +15,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Next blocks dev assets from 127.0.0.1 unless the host is listed. `pnpm dev`
+  // is opened both as localhost and as 127.0.0.1.
+  allowedDevOrigins: ["127.0.0.1"],
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ["@smartmirror/ui", "@smartmirror/device-capabilities"],
