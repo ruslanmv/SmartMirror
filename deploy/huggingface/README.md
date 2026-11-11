@@ -20,8 +20,9 @@ DRY_RUN=1 make space
 STAGE_TO=/tmp/sm-space make space
 ```
 
-`deploy.sh` uploads **committed HEAD** (`git archive` of the app tree) with
-`hf/Dockerfile` → Space `Dockerfile` and `hf/README.md` → Space card.
+`deploy.sh` uploads **committed HEAD** only: a `git archive` of the app tree
+and `hf/`, then relocates `hf/Dockerfile` → Space `Dockerfile` and
+`hf/README.md` → Space card. Working-tree edits under `hf/` are never copied.
 
 CI **Deploy to Hugging Face Space** runs on every push to `main` when the
 repository secret `HF_TOKEN` is set.

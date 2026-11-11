@@ -6,12 +6,9 @@
 #   DRY_RUN=1 sh deploy/huggingface/deploy.sh          # stage only, print the tree
 #   STAGE_TO=/tmp/smartmirror-space sh deploy/huggingface/deploy.sh
 #
-# The Space receives the committed HEAD, not the working tree: a `git archive`
-# of exactly what the Dockerfile needs, plus hf/Dockerfile → Dockerfile and
-# hf/README.md → README.md (Space card front matter). Uncommitted edits are
-# not uploaded. The Space commit names the source SHA.
-#
-# The upload mirrors: files the stage no longer has are deleted from the Space
+# The Space receives the committed HEAD only: a `git archive` of the app tree
+# and of hf/. Uncommitted edits are never uploaded. The Space commit names the
+# source SHA. The upload mirrors, so removed modules disappear from the Space
 # (huggingface_hub never deletes .gitattributes).
 set -eu
 
@@ -19,11 +16,11 @@ HF_SPACE_REPO="${HF_SPACE_REPO:-ruslanmv/SmartMirror}"
 ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 cd "$ROOT"
 
-# Everything the Space Dockerfile COPYs (after hf/ files are placed at root).
-PATHS="pyproject.toml LICENSE smartmirror services integrations packages"
+# App tree the Space Dockerfile COPYs, plus hf/ (relocated to Space root below).
+PATHS="pyproject.toml LICENSE smartmirror services integrations packages hf"
 
 # shellcheck disable=SC2086
-if [ -n "$(git status --porcelain -- $PATHS hf deploy/huggingface)" ]; then
+if [ -n "$(git status --porcelain -- $PATHS deploy/huggingface)" ]; then
   echo "note: uncommitted changes under the deployed paths are NOT deployed; HEAD is." >&2
 fi
 
@@ -34,16 +31,16 @@ trap 'rm -rf "$STAGE"' EXIT
 # shellcheck disable=SC2086
 git archive --format=tar HEAD $PATHS | tar -x -C "$STAGE"
 
-# Space root layout: Docker + card + uvicorn entry from hf/.
-cp hf/Dockerfile "$STAGE/Dockerfile"
-cp hf/app.py "$STAGE/app.py"
-cp hf/README.md "$STAGE/README.md"
-if [ -f hf/.dockerignore ]; then
-  cp hf/.dockerignore "$STAGE/.dockerignore"
+# Space root layout: Docker + card + uvicorn entry from the *archived* hf/.
+mv "$STAGE/hf/Dockerfile" "$STAGE/Dockerfile"
+mv "$STAGE/hf/app.py" "$STAGE/app.py"
+mv "$STAGE/hf/README.md" "$STAGE/README.md"
+if [ -f "$STAGE/hf/.dockerignore" ]; then
+  mv "$STAGE/hf/.dockerignore" "$STAGE/.dockerignore"
 fi
+rm -rf "$STAGE/hf"
 
 # Pip needs a README.md for the project metadata; the Space card is that file.
-# pyproject points at readme = "README.md" — the Space card text is fine.
 
 echo "Staged $(find "$STAGE" -type f | wc -l | tr -d ' ') files from $SHA ($(du -sh "$STAGE" | cut -f1)) for $HF_SPACE_REPO"
 if [ -n "${STAGE_TO:-}" ]; then
@@ -61,8 +58,7 @@ hf upload "$HF_SPACE_REPO" "$STAGE" . --repo-type=space --delete='*' \
   --commit-message="Deploy $SHA" \
   --commit-description="From SmartMirror $(git rev-parse HEAD)"
 
-# Non-secret Space variables. Tokens (OLLABRIDGE_TOKEN, …) are secrets you set
-# yourself in the Space settings — this script never writes them.
+# Non-secret Space variables. Secrets (HOMEPILOT_API_KEY, …) are set by hand.
 python3 - "$HF_SPACE_REPO" <<'EOF'
 import sys
 
