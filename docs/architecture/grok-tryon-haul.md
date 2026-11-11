@@ -1,6 +1,6 @@
 # Grok clothing swap and Amazon haul — mechanism
 
-Status: **Client contract in this repo. Cloud adapter not in this repo.**
+Status: **Client in this repo. Cloud adapter on ollabridge-cloud.**
 Date: 11 November 2026.
 
 This is the mechanism for swapping clothes, and for a short try-on haul of
@@ -10,20 +10,13 @@ Amazon candidates, when the only image path is OllaBridge Cloud.
 
 | Source | What it shows |
 |---|---|
-| `ruslanmv/ollabridge-cloud` branch `claude/relaxed-dijkstra-rkcbl9` | **Not readable here.** GitHub returns 404 for this session's credential and for an anonymous request. The cloud file layout below is the contract SmartMirror already speaks, plus the additive fields this change sends. It is not a diff of that branch. |
-| SmartMirror `OllaBridgeCloudEditProvider` | `POST /v1/images/edits` then `GET /v1/jobs/{id}`. One person image, a text prompt, model `edit-default`. |
+| `ruslanmv/ollabridge-cloud` @ `claude/relaxed-dijkstra-rkcbl9` | Wave A job API: `POST /v1/images/edits`, `POST /v1/videos/generations`, `GET /v1/jobs/{id}`. Jobs route to a **paired GPU** only (tier 1). `ImageEditRequest` had `model`, `prompt`, one `image`, optional `mask` — **no** `references`, **no** Grok Imagine short-circuit. `XAI_API_KEY` already exists for chat (`xai-grok`). |
+| Cloud follow-up `cursor/grok-imagine-tryon-7c54` | Additive: `references` + `duration` on the job sugar; `OLLABRIDGE_GROK_IMAGINE_ENABLED` (default off); `services/grok_imagine.py` maps `image`+`references` → xAI and short-circuits before device relay. Contract: `docs/contracts/grok-imagine-tryon.md` in that repo. |
+| SmartMirror `OllaBridgeCloudEditProvider` | Same create/poll loop. Garment bytes and model `grok-imagine-image-2.0` only when `SMARTMIRROR_GROK_IMAGINE=true`. |
 | SmartMirror shopping | Amazon **link-out** only (`https://www.amazon.<tld>/s?k=…`). No product image, no ASIN. |
-| Public `ruslanmv/ollabridge` @ `f49aa7b` | `POST /v1/images/generations` is Hugging Face **text-to-image** (no source photo). `homepilot.image.generate` relays a HomePilot still. Cloud media cache is `POST /media/upload` (50 MB) and `GET /media/cache/{filename}`. |
-| xAI Imagine docs, fetched 11 November 2026 | `grok-imagine-image-2.0` edits up to **5** images via `POST https://api.x.ai/v1/images/edits`. `grok-imagine-video-1.5` takes reference images via `POST https://api.x.ai/v1/videos/generations` (the published dress example). Image price on the Imagine overview: **$0.04** per image. Video 720p on `grok-imagine-video-1.5`: **$0.14/s**. |
-| Live cloud `https://api.ollabridge.com/openapi.json`, read 11 November 2026 | OllaBridge Cloud 0.1.0. `POST /v1/images/edits` and `POST /v1/videos/generations` already exist. Neither schema has garment `references` or a Grok model. See below. |
+| xAI Imagine docs, fetched 11 November 2026 | `grok-imagine-image-2.0` edits up to **5** images via `POST https://api.x.ai/v1/images/edits` (`images` array). `grok-imagine-video-1.5` takes `reference_images` via `POST https://api.x.ai/v1/videos/generations`. ~$0.04 / image; video 720p ~$0.14/s. |
 
-## The GitHub branch could not be added
-
-A second attempt to read `github.com/ruslanmv/ollabridge-cloud` branch `claude/relaxed-dijkstra-rkcbl9` still returns 404. This run's GitHub installation can see only `ruslanmv/SmartMirror`. The branch is not a submodule, and the Hugging Face Space that hosts the live cloud answered 429 (queue full), so its files were not cloned either.
-
-Until that repository is on the same GitHub installation, this repo cannot vendor or patch the cloud. The client below is the SmartMirror half only.
-
-### What the running cloud accepts
+### What the base cloud accepted (before the Grok adapter)
 
 `ImageEditRequest` (required: `model`, `prompt`, `image`):
 
@@ -35,7 +28,7 @@ content_class: default "general"
 
 `VideoGenerationRequest` (required: `model`): `prompt`, one `image`, `num_frames`, `fps`, `seed`, `content_class`. No `duration`, no second image.
 
-Pydantic drops unknown fields. A body that adds top-level `references` is accepted and ignored. On this deployment a garment photo does not reach the model, and a model id of `grok-imagine-image-2.0` is not advertised (the spec contains no `grok` or `xai` string). `SMARTMIRROR_GROK_IMAGINE` stays off until the cloud branch is actually deployed with the adapter.
+Pydantic dropped unknown fields, so a body with `references` was accepted and ignored. A model id of `grok-imagine-image-2.0` still went to device routing and failed with `no_device_available` unless a node advertised that model. That is why both sides stay flag-gated.
 
 ## Why a text prompt cannot do this
 
@@ -45,9 +38,9 @@ Three gaps, in order:
 
 1. **No garment image on the edit.** `garment_refs` were wardrobe ids. The cloud body carried only the person.
 2. **No Amazon image.** Link-out is a search URL. There is nothing to composite. Scraping Amazon HTML is not the path.
-3. **No haul.** One still, and no video route. Editing each result into the next one drifts the face.
+3. **No haul.** One still, and no video route with a second image. Editing each result into the next one drifts the face.
 
-Text-to-image (`/v1/images/generations`, Hugging Face) cannot fill these gaps. It never sees the person.
+Text-to-image (`/v1/images/generations`) cannot fill these gaps. It never sees the person.
 
 ## Ownership
 
@@ -72,7 +65,9 @@ Amazon / wardrobe garment photo ──▶ SmartMirror
         │  POST /v1/images/edits     (still, one outfit or one haul frame)
         │  POST /v1/videos/generations  (optional 6s clip of the chosen frame)
         ▼
-OllaBridge Cloud  ── flag OLLABRIDGE_GROK_IMAGINE_ENABLED (default off) ──▶ xAI
+OllaBridge Cloud
+        │  SMARTMIRROR_GROK_IMAGINE + OLLABRIDGE_GROK_IMAGINE_ENABLED
+        │  model grok-imagine-*  ──▶ xAI (not a paired Comfy node)
         │
         │  GET /v1/jobs/{id}     same poll SmartMirror already uses
         ▼
@@ -160,19 +155,19 @@ The cloud maps `image` + `references` to xAI `reference_images` and polls xAI's 
 
 Amazon still receives text only. The body photo goes to xAI via the cloud, which D10 already allows when this provider is selected. That choice is `SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud`. It is off unless the owner sets it (the default provider is HomePilot, on the home PC).
 
-## Cloud work this client assumes
+## Cloud work (shipped on the ollabridge-cloud Grok branch)
 
-Additive, flag default off, matching the platform rules in the upgrade plan:
+Additive, flag default off:
 
 1. `OLLABRIDGE_GROK_IMAGINE_ENABLED` (default **false**) and `XAI_API_KEY` on the cloud only.
-2. Flag off: `POST /v1/images/edits` behaves as it does today. Unknown `references` must be ignored, not rejected, so an older cloud keeps working with text-only edits. A Grok model id with the flag off returns `CAPABILITY_UNAVAILABLE`.
+2. Flag off: `POST /v1/images/edits` behaves as it did on `claude/relaxed-dijkstra-rkcbl9`. A Grok model id returns `CAPABILITY_UNAVAILABLE`.
 3. Flag on: translate `image` + `references` to the xAI bodies above. Download the result into the existing artifact URL. Do not log the prompt or the bytes.
-4. `POST /v1/videos/generations` with the same job poll. The route already exists on the running cloud; this adds `references` and a short `duration`, which that deployment currently drops. Old clients that send only `model` and `prompt` stay valid.
+4. `POST /v1/videos/generations` accepts `references` and `duration`. Old clients that send only `model` and `prompt` stay valid.
 5. No wardrobe, ASIN, or shopping type in the cloud schema.
 
 ## What this change does not do
 
 - It does not call xAI from SmartMirror, the browser, or the Echo.
 - It does not scrape Amazon.
-- It does not show a video in the try-on job. The clip method is the contract; storage comes with the cloud route.
+- It does not show a video in the try-on job. The clip method is the contract; storage comes later.
 - It does not turn link-out suggestions into a haul. A haul starts when something has a garment image.
