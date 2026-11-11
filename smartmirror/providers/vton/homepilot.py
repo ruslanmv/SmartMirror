@@ -67,7 +67,7 @@ class HomePilotEditSessionProvider(VirtualTryOnProvider):
         }
 
     def _absolute(self, url: str) -> str:
-        if url.startswith("http://") or url.startswith("https://"):
+        if url.startswith(("http://", "https://")):
             return url
         if url.startswith("/"):
             return f"{self.base_url}{url}"
@@ -88,7 +88,7 @@ class HomePilotEditSessionProvider(VirtualTryOnProvider):
             body = r.json()
             detail = str(body.get("detail") or body.get("error") or "")
             code = str(body.get("code") or "")
-        except Exception:
+        except (ValueError, TypeError, httpx.DecodingError):
             detail = (r.text or "")[:200]
         unavailable = r.status_code == 503 or code == "edit_session_unavailable"
         return {
