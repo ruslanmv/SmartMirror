@@ -54,17 +54,29 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 @app.get("/health")
 def health() -> dict:
-    return {"ok": True, "service": "smartmirror", "version": "0.1.0"}
+    from smartmirror.providers.vton import provider_status
+
+    return {"ok": True, "service": "smartmirror", "version": "0.1.0", **provider_status()}
 
 
 @app.get("/v1/capabilities")
 def capabilities() -> dict:
+    from smartmirror.providers.vton import provider_status
+
+    status = provider_status()
     return {
         "wardrobe": True,
         "style_suggest": True,
         "tryon_jobs": True,
         "homepilot_mcp": True,
         "echo_camera_required": False,
+        "compute": {
+            "production": "homepilot",
+            "homepilot_base_url": status["homepilot_base_url"],
+            "image_provider": status["image_provider"],
+            "provider_ready": status["provider_ready"],
+            "optional_cloud_swap": "ollabridge-cloud (Grok Imagine — development)",
+        },
     }
 
 

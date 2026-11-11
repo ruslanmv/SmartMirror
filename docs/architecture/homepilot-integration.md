@@ -1,5 +1,16 @@
 # HomePilot Integration
 
+**Production source of truth** for compute is the HomePilot HF web edition:
+
+- Live: [https://homepilot.ruslanmv.com/](https://homepilot.ruslanmv.com/)
+- Branch: [`claude/homepilot-hf-web-edition-410aea`](https://github.com/ruslanmv/HomePilot/tree/claude/homepilot-hf-web-edition-410aea)
+
+SmartMirror defaults to that host (`HOMEPILOT_BASE_URL`,
+`SMARTMIRROR_IMAGE_PROVIDER=homepilot`). Try-on uses HomePilot's existing
+`/v1/edit-sessions/{id}/image` and `/message` API
+(`HomePilotEditSessionProvider`). Grok Imagine through OllaBridge Cloud is an
+optional second path for clothing-swap experiments, not production.
+
 SmartMirror matches HomePilot's existing MCP-server shape:
 
 - `GET /health`

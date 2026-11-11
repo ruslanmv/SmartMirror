@@ -7,7 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: false
 license: apache-2.0
-short_description: AI wardrobe stylist and virtual try-on API
+short_description: AI wardrobe stylist powered by HomePilot
 ---
 
 # SmartMirror
@@ -15,33 +15,49 @@ short_description: AI wardrobe stylist and virtual try-on API
 AI wardrobe stylist and virtual try-on API for large-screen clients (Echo Show /
 companion web). Runs as a **Docker Space** on port **7860**.
 
+**Production compute** is [HomePilot](https://homepilot.ruslanmv.com/) — the
+HF web edition
+([`claude/homepilot-hf-web-edition-410aea`](https://github.com/ruslanmv/HomePilot/tree/claude/homepilot-hf-web-edition-410aea)).
+Try-on uses HomePilot's `/v1/edit-sessions/*` API. Grok Imagine via OllaBridge
+Cloud is an **optional development** path for clothing-swap experiments, not
+the default on this Space.
+
 | Path | What it is |
 | --- | --- |
 | `/` | Space home |
 | `/docs` | Interactive OpenAPI |
-| `/health` | Liveness |
-| `/v1/capabilities` | Feature flags |
+| `/health` | Liveness + configured provider |
+| `/v1/capabilities` | Feature flags + HomePilot target |
 | `/rpc` | HomePilot MCP tools |
 
 ## Defaults on this Space
 
-- **SQLite** + **local media** under `/app/data` (ephemeral on a free Space —
-  restart clears wardrobe photos and previews).
-- Try-on provider: **OllaBridge Cloud** (`SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud`).
-  Set the Space **secret** `OLLABRIDGE_TOKEN` (paired device / API token). The
-  xAI key never lives here — it stays on OllaBridge Cloud.
-- Grok clothing-swap references stay off until both
-  `SMARTMIRROR_GROK_IMAGINE=true` (Space variable) and
-  `OLLABRIDGE_GROK_IMAGINE_ENABLED` on the cloud are set.
+- **SQLite** + **local media** under `/app/data` (ephemeral on a free Space).
+- `SMARTMIRROR_IMAGE_PROVIDER=homepilot`
+- `HOMEPILOT_BASE_URL=https://homepilot.ruslanmv.com`
+- Set Space **secret** `HOMEPILOT_API_KEY` (HomePilot `API_KEY` as Bearer /
+  `X-API-Key`) so try-on and MCP registration work against production.
+- Optional: `OLLABRIDGE_TOKEN` only if you switch
+  `SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud` for Grok swap tests.
+
+## Register MCP with HomePilot
+
+After the Space is up, register this gateway so HomePilot can call
+`hp.smartmirror.*` tools:
+
+```bash
+HOMEPILOT_BASE_URL=https://homepilot.ruslanmv.com \
+HOMEPILOT_API_KEY=… \
+SMARTMIRROR_PUBLIC_MCP_URL=https://<this-space>.hf.space/rpc \
+python scripts/register_homepilot.py
+```
 
 ## Deploy from the GitHub repo
 
 ```bash
 HF_TOKEN=hf_... make space
-# or: sh deploy/huggingface/deploy.sh
 ```
 
-Pushes to `main` run the same script via **Deploy to Hugging Face Space** CI
-when the repository secret `HF_TOKEN` is set.
+Pushes to `main` run **Deploy to Hugging Face Space** when `HF_TOKEN` is set.
 
 Source: [github.com/ruslanmv/SmartMirror](https://github.com/ruslanmv/SmartMirror)

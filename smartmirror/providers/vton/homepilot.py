@@ -8,9 +8,12 @@ from .base import TryOnRequest, TryOnResult, VirtualTryOnProvider
 
 
 class HomePilotEditSessionProvider(VirtualTryOnProvider):
-    """Use HomePilot's existing edit-session API for a generative style preview.
+    """Use HomePilot's edit-session API for a generative style preview.
 
-    This is a visual approximation provider, not a physical garment-fit simulator.
+    Production target is the HF web edition at https://homepilot.ruslanmv.com
+    (branch ``claude/homepilot-hf-web-edition-410aea``). This is a visual
+    approximation, not a physical garment-fit simulator. Clothing-swap with
+    garment *pixels* is the optional OllaBridge/Grok path, not this provider.
     """
 
     name = "homepilot-edit-session"
@@ -21,15 +24,33 @@ class HomePilotEditSessionProvider(VirtualTryOnProvider):
         self.timeout = timeout
 
     def _headers(self) -> dict[str, str]:
-        return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        if not self.api_key:
+            return {}
+        # HomePilot accepts Bearer or X-API-Key for the shared API_KEY.
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "X-API-Key": self.api_key,
+        }
+
+    def _absolute(self, url: str) -> str:
+        if url.startswith("http://") or url.startswith("https://"):
+            return url
+        if url.startswith("/"):
+            return f"{self.base_url}{url}"
+        return f"{self.base_url}/{url}"
 
     async def generate(self, request: TryOnRequest) -> TryOnResult:
         session_id = "smartmirror-" + uuid.uuid4().hex
-        prompt = request.instruction.strip() or "Change only the clothing while preserving identity, face, hair, body proportions, pose, camera perspective, and background."
+        prompt = request.instruction.strip() or (
+            "Change only the clothing while preserving identity, face, hair, "
+            "body proportions, pose, camera perspective, and background."
+        )
         if request.garment_refs:
-            prompt += " Use the supplied SmartMirror wardrobe references: " + ", ".join(request.garment_refs)
+            prompt += " Use the supplied SmartMirror wardrobe references: " + ", ".join(
+                request.garment_refs
+            )
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
             upload = await client.post(
                 f"{self.base_url}/v1/edit-sessions/{session_id}/image",
                 headers=self._headers(),
@@ -51,10 +72,14 @@ class HomePilotEditSessionProvider(VirtualTryOnProvider):
             if isinstance(value, list):
                 for item in value:
                     if isinstance(item, str):
-                        urls.append(item)
+                        urls.append(self._absolute(item))
                     elif isinstance(item, dict) and item.get("url"):
-                        urls.append(str(item["url"]))
+                        urls.append(self._absolute(str(item["url"])))
         if not urls and isinstance(data.get("active_image_url"), str):
-            urls.append(data["active_image_url"])
+            urls.append(self._absolute(data["active_image_url"]))
 
-        return TryOnResult(image_urls=urls, provider=self.name, metadata={"session_id": session_id, "raw": data})
+        return TryOnResult(
+            image_urls=urls,
+            provider=self.name,
+            metadata={"session_id": session_id, "homepilot": self.base_url},
+        )

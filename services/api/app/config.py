@@ -20,10 +20,17 @@ class Settings(BaseSettings):
     smartmirror_s3_bucket: str = "smartmirror"
     smartmirror_s3_region: str = "us-east-1"
 
-    homepilot_base_url: str = "http://localhost:8000"
+    # Production compute: HomePilot HF web edition (https://homepilot.ruslanmv.com).
+    # Local HomePilot for development; the Space defaults to the public host.
+    homepilot_base_url: str = "https://homepilot.ruslanmv.com"
     homepilot_api_key: str = ""
 
-    ollabridge_base_url: str = "https://ruslanmv-ollabridge.hf.space"
+    # Try-on backend: "homepilot" (edit-session on HomePilot — production),
+    # "ollabridge-cloud" (optional Grok Imagine clothing-swap path for experiments),
+    # or "none".
+    smartmirror_image_provider: str = "homepilot"
+
+    ollabridge_base_url: str = "https://api.ollabridge.com"
     ollabridge_token: str = ""
     ollabridge_node_id: str = ""
 

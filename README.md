@@ -144,6 +144,8 @@ curl http://localhost:8100/health
 
 The API also deploys as a Docker Space: [ruslanmv/SmartMirror](https://huggingface.co/spaces/ruslanmv/SmartMirror) (port 7860). Packaging is in `hf/`; `make space` (or CI **Deploy to Hugging Face Space** on `main`) uploads committed HEAD via `deploy/huggingface/deploy.sh`. Needs repository secret `HF_TOKEN`. See `deploy/huggingface/README.md`.
 
+**Production compute** is [HomePilot](https://homepilot.ruslanmv.com/) ([HF web edition](https://github.com/ruslanmv/HomePilot/tree/claude/homepilot-hf-web-edition-410aea)). The Space defaults to `SMARTMIRROR_IMAGE_PROVIDER=homepilot` and `HOMEPILOT_BASE_URL=https://homepilot.ruslanmv.com`. Set Space secret `HOMEPILOT_API_KEY`. Grok Imagine via OllaBridge Cloud is an optional development path for clothing-swap experiments, not the Space default.
+
 MCP discovery:
 
 ```bash

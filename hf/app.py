@@ -33,7 +33,8 @@ def space_home() -> str:
 <body>
   <main>
     <h1>SmartMirror</h1>
-    <p>AI wardrobe stylist and virtual try-on API. Open the interactive docs to try the routes.</p>
+    <p>AI wardrobe stylist and virtual try-on API. Production compute is
+       <a href="https://homepilot.ruslanmv.com/">HomePilot</a>; open the docs to try the routes.</p>
     <ul>
       <li><a href="/docs">OpenAPI docs</a></li>
       <li><a href="/health">Health</a></li>

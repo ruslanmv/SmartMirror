@@ -72,9 +72,11 @@ repo = sys.argv[1]
 api = HfApi()
 variables = {
     "SMARTMIRROR_ENV": "space",
-    "SMARTMIRROR_IMAGE_PROVIDER": "ollabridge-cloud",
-    "SMARTMIRROR_GROK_IMAGINE": "false",
+    # Production compute = HomePilot HF web edition.
+    "SMARTMIRROR_IMAGE_PROVIDER": "homepilot",
+    "HOMEPILOT_BASE_URL": "https://homepilot.ruslanmv.com",
     "SMARTMIRROR_SHOPPING": "linkout",
+    # Optional Grok clothing-swap path (off unless you change IMAGE_PROVIDER).
     "OLLABRIDGE_BASE_URL": "https://api.ollabridge.com",
 }
 domains = api.get_space_runtime(repo).raw.get("domains") or []
@@ -84,5 +86,6 @@ for key, value in variables.items():
     api.add_space_variable(repo, key, value)
     print(f"  {key}={value}")
 print(f"Building: https://huggingface.co/spaces/{repo}?logs=build")
-print("Set Space secret OLLABRIDGE_TOKEN when you want cloud try-on.")
+print("Set Space secret HOMEPILOT_API_KEY for production try-on against homepilot.ruslanmv.com.")
+print("Optional: OLLABRIDGE_TOKEN only for SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud experiments.")
 EOF
