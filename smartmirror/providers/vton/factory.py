@@ -40,4 +40,9 @@ def provider_status() -> dict:
         "provider_name": provider.name if provider else None,
         "homepilot_base_url": s.homepilot_base_url,
         "homepilot_api_key_set": bool(s.homepilot_api_key),
+        # Live probe is async; /health uses the sync snapshot. See /v1/compute/probe.
+        "note": (
+            "Production HomePilot try-on needs the edit-session sidecar "
+            "(EDIT_SESSION_URL). Without it /v1/edit-sessions returns 503."
+        ),
     }

@@ -37,8 +37,12 @@ the default on this Space.
 - `HOMEPILOT_BASE_URL=https://homepilot.ruslanmv.com`
 - Set Space **secret** `HOMEPILOT_API_KEY` (HomePilot `API_KEY` as Bearer /
   `X-API-Key`) so try-on and MCP registration work against production.
-- Optional: `OLLABRIDGE_TOKEN` only if you switch
-  `SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud` for Grok swap tests.
+- **Try-on needs HomePilot's edit-session sidecar.** Today production returns
+  503 on `/v1/edit-sessions/*` until `EDIT_SESSION_URL` points at a live
+  sidecar. Root `/chat` + `/upload` are not usable from API clients (nginx 405).
+  Probe: `GET /v1/compute/probe` on this Space. Until the sidecar is up, use
+  `SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud` + `OLLABRIDGE_TOKEN` only for
+  Grok clothing-swap experiments.
 
 ## Register MCP with HomePilot
 

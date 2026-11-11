@@ -6,10 +6,23 @@
 - Branch: [`claude/homepilot-hf-web-edition-410aea`](https://github.com/ruslanmv/HomePilot/tree/claude/homepilot-hf-web-edition-410aea)
 
 SmartMirror defaults to that host (`HOMEPILOT_BASE_URL`,
-`SMARTMIRROR_IMAGE_PROVIDER=homepilot`). Try-on uses HomePilot's existing
+`SMARTMIRROR_IMAGE_PROVIDER=homepilot`). Try-on uses HomePilot's
 `/v1/edit-sessions/{id}/image` and `/message` API
-(`HomePilotEditSessionProvider`). Grok Imagine through OllaBridge Cloud is an
-optional second path for clothing-swap experiments, not production.
+(`HomePilotEditSessionProvider`).
+
+### Production gap (verified Nov 2026)
+
+| Call | Result on `homepilot.ruslanmv.com` |
+|---|---|
+| `POST /v1/edit-sessions/...` | **503** — cannot connect to edit-session at `http://edit-session:8010` (`EDIT_SESSION_URL`) |
+| `POST /chat`, `POST /upload` | **405** — nginx `try_files` on `/` rejects POST for API clients |
+| `POST /v1/files/upload`, `/v1/enhance`, `/v1/edit/identity` | Reach the app (auth / schema apply) but are not general clothing-edit |
+
+**HomePilot ops needed for production try-on:** run the edit-session sidecar
+(or point `EDIT_SESSION_URL` at one), *or* expose chat/upload under `/v1/` so
+nginx's API regex forwards POSTs. Until then SmartMirror fails closed with
+`CAPABILITY_UNAVAILABLE` instead of hanging. Optional clothing-swap experiments
+can use `SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud` + Grok.
 
 SmartMirror matches HomePilot's existing MCP-server shape:
 

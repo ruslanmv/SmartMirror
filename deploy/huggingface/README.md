@@ -12,6 +12,13 @@ on port **7860**. Packaging lives in `hf/`; this folder uploads it.
 
 The Space defaults to HomePilot. Do **not** put `XAI_API_KEY` on the Space.
 
+**Try-on caveat:** production HomePilot currently returns **503** on
+`/v1/edit-sessions/*` until the edit-session sidecar (`EDIT_SESSION_URL`) is
+running. Root `/chat` and `/upload` return **405** for API POSTs (nginx
+`try_files`). Probe from the Space with `GET /v1/compute/probe`. Until the
+sidecar is up, use `SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud` only for Grok
+clothing-swap experiments.
+
 ## Deploy
 
 ```bash

@@ -1,3 +1,16 @@
+"""HomePilot try-on via the production HF web edition.
+
+Target: https://homepilot.ruslanmv.com
+Branch: claude/homepilot-hf-web-edition-410aea
+
+Preferred API: ``/v1/edit-sessions/*`` (proxied to the edit-session sidecar).
+As of Nov 2026 that sidecar is not running on production (returns 503). Root
+``/chat`` + ``/upload`` are also unreachable from API clients (nginx
+``try_files`` returns 405 on POST). Until HomePilot ships the sidecar (or
+exposes edit under ``/v1/``), this provider fails closed with a clear error
+instead of pretending try-on works.
+"""
+
 from __future__ import annotations
 
 import uuid
@@ -7,26 +20,47 @@ import httpx
 from .base import TryOnRequest, TryOnResult, VirtualTryOnProvider
 
 
+class HomePilotProviderError(RuntimeError):
+    """Terminal try-on failure with a stable code prefix for jobs."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+
 class HomePilotEditSessionProvider(VirtualTryOnProvider):
     """Use HomePilot's edit-session API for a generative style preview.
 
-    Production target is the HF web edition at https://homepilot.ruslanmv.com
-    (branch ``claude/homepilot-hf-web-edition-410aea``). This is a visual
-    approximation, not a physical garment-fit simulator. Clothing-swap with
-    garment *pixels* is the optional OllaBridge/Grok path, not this provider.
+    This is a visual approximation, not a physical garment-fit simulator.
+    Clothing-swap with garment *pixels* is the optional OllaBridge/Grok path.
     """
 
     name = "homepilot-edit-session"
 
-    def __init__(self, base_url: str, api_key: str = "", timeout: float = 180.0):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str = "",
+        timeout: float = 180.0,
+        transport: httpx.BaseTransport | httpx.AsyncBaseTransport | None = None,
+    ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
+        self._transport = transport
+
+    def _client(self, timeout: float | None = None) -> httpx.AsyncClient:
+        kwargs: dict = {
+            "timeout": self.timeout if timeout is None else timeout,
+            "follow_redirects": True,
+        }
+        if self._transport is not None:
+            kwargs["transport"] = self._transport
+        return httpx.AsyncClient(**kwargs)
 
     def _headers(self) -> dict[str, str]:
         if not self.api_key:
             return {}
-        # HomePilot accepts Bearer or X-API-Key for the shared API_KEY.
         return {
             "Authorization": f"Bearer {self.api_key}",
             "X-API-Key": self.api_key,
@@ -39,6 +73,32 @@ class HomePilotEditSessionProvider(VirtualTryOnProvider):
             return f"{self.base_url}{url}"
         return f"{self.base_url}/{url}"
 
+    async def probe(self) -> dict:
+        """Cheap check: can we reach edit-sessions (not the SPA shell)?"""
+        path = f"{self.base_url}/v1/edit-sessions/smartmirror-probe"
+        try:
+            async with self._client(timeout=10.0) as client:
+                r = await client.get(path, headers=self._headers())
+        except httpx.HTTPError as exc:
+            return {"ok": False, "status": 0, "detail": str(exc)}
+        # 404/401/200 = plane is up. 503 + edit_session_unavailable = sidecar down.
+        detail = ""
+        code = ""
+        try:
+            body = r.json()
+            detail = str(body.get("detail") or body.get("error") or "")
+            code = str(body.get("code") or "")
+        except Exception:
+            detail = (r.text or "")[:200]
+        unavailable = r.status_code == 503 or code == "edit_session_unavailable"
+        return {
+            "ok": not unavailable and r.status_code < 500,
+            "status": r.status_code,
+            "detail": detail,
+            "code": code,
+            "sidecar_missing": unavailable,
+        }
+
     async def generate(self, request: TryOnRequest) -> TryOnResult:
         session_id = "smartmirror-" + uuid.uuid4().hex
         prompt = request.instruction.strip() or (
@@ -50,12 +110,20 @@ class HomePilotEditSessionProvider(VirtualTryOnProvider):
                 request.garment_refs
             )
 
-        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+        async with self._client() as client:
             upload = await client.post(
                 f"{self.base_url}/v1/edit-sessions/{session_id}/image",
                 headers=self._headers(),
                 files={"file": ("body.jpg", request.person_image, request.person_content_type)},
             )
+            if upload.status_code == 503:
+                raise HomePilotProviderError(
+                    "CAPABILITY_UNAVAILABLE: HomePilot edit-session sidecar is not running "
+                    f"at {self.base_url} (POST /v1/edit-sessions returned 503). "
+                    "On production, set EDIT_SESSION_URL to a live sidecar, or temporarily "
+                    "use SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud for Grok clothing-swap tests. "
+                    "Root /chat and /upload are not usable from API clients on the current nginx."
+                )
             upload.raise_for_status()
 
             edit = await client.post(
@@ -63,6 +131,11 @@ class HomePilotEditSessionProvider(VirtualTryOnProvider):
                 headers={**self._headers(), "Content-Type": "application/json"},
                 json={"message": prompt},
             )
+            if edit.status_code == 503:
+                raise HomePilotProviderError(
+                    "CAPABILITY_UNAVAILABLE: HomePilot edit-session sidecar is not running "
+                    f"at {self.base_url}."
+                )
             edit.raise_for_status()
             data = edit.json()
 
