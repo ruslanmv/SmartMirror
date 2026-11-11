@@ -14,6 +14,8 @@ Derived sensitive media. Default retention should be configurable and visible to
 ### OllaBridge relay/media copy
 Transport artifact only. Do not treat it as the authoritative SmartMirror media store.
 
+When `SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud`, the body capture and the garment photos used as edit references leave the house for that call. They are sent to OllaBridge Cloud, which may forward them to the image model (Grok Imagine). They are not sent to Amazon. Amazon receives a search query, or a Creators API lookup, and nothing else.
+
 ## Rules
 
 - Keep object storage private.

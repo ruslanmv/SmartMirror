@@ -193,6 +193,7 @@ gradle :app:assembleDebug -PsmartmirrorWebUrl=https://smart-mirror.vercel.app
 - `docs/architecture/overview.md`
 - `docs/architecture/homepilot-integration.md`
 - `docs/architecture/ollabridge-integration.md`
+- `docs/architecture/grok-tryon-haul.md` (Grok Imagine clothing swap and Amazon haul)
 - `docs/architecture/wardrobe-intelligence-and-shopping.md` (garment ML, outfit sets, Amazon)
 - `docs/plans/homepilot-smartmirror-upgrade-plan.md` (cross-repo delivery plan)
 - `docs/privacy/data-handling.md`
