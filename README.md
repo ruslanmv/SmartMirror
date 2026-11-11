@@ -140,6 +140,10 @@ Health:
 curl http://localhost:8100/health
 ```
 
+### Hugging Face Space
+
+The API also deploys as a Docker Space: [ruslanmv/SmartMirror](https://huggingface.co/spaces/ruslanmv/SmartMirror) (port 7860). Packaging is in `hf/`; `make space` (or CI **Deploy to Hugging Face Space** on `main`) uploads committed HEAD via `deploy/huggingface/deploy.sh`. Needs repository secret `HF_TOKEN`. See `deploy/huggingface/README.md`.
+
 MCP discovery:
 
 ```bash
