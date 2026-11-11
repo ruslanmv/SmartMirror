@@ -14,11 +14,12 @@ class OllaBridgeCloudEditProvider(VirtualTryOnProvider):
     """Fallback when no local GPU: OllaBridge Cloud /v1/images/edits (D10).
 
     The photo leaves the house for this call; it is only used when the owner
-    chooses SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud. Garment photos on the
-    request are sent as ``references`` and the model becomes Grok Imagine
-    (``grok-imagine-image-2.0``). A haul clip uses ``/v1/videos/generations``.
-    The cloud holds the xAI key and maps this body onto Grok; this client
-    never calls api.x.ai itself.
+    chooses SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud. Garment photos are
+    sent as ``references`` (and the model becomes ``grok-imagine-image-2.0``)
+    only when the caller puts them on the request. The try-on job does that
+    when SMARTMIRROR_GROK_IMAGINE is on. A haul clip uses
+    ``/v1/videos/generations``. The cloud holds the xAI key and maps this body
+    onto Grok; this client never calls api.x.ai itself.
     """
 
     name = "ollabridge-cloud"

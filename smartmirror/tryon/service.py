@@ -68,6 +68,12 @@ def _garment_references(
         except media.MediaRejected:
             unseen.append(item_label(item))
             continue
+        except FileNotFoundError:
+            # The Asset row outlived the file. Describe the piece in words.
+            unseen.append(item_label(item))
+            continue
+        except OSError as exc:
+            raise media.MediaRejected("RESOURCE_REJECTED: garment photo unreadable") from exc
         if not str(asset.content_type).startswith("image/"):
             unseen.append(item_label(item))
             continue
@@ -157,8 +163,9 @@ async def run_tryon_job(
             extra = str(req.get("instruction") or "")
             references: list[ReferenceImage] = []
             instruction = build_instruction(items, extra)
-            # Garment pixels go out only on the cloud path. HomePilot stays text-only.
-            if provider.name == "ollabridge-cloud":
+            # Garment pixels go out only when the owner has turned Grok on.
+            # HomePilot stays text-only. A cloud without the adapter stays on edit-default.
+            if provider.name == "ollabridge-cloud" and get_settings().smartmirror_grok_imagine:
                 references, unseen = _garment_references(db, store, items, job.profile_id)
                 if references:
                     instruction = swap_prompt(references, also=unseen, extra=extra)
@@ -171,6 +178,11 @@ async def run_tryon_job(
             )
         except media.MediaRejected as exc:
             _fail(db, job, str(exc))
+            return job.status
+        except OSError:
+            # A missing body photo, or any other storage error, must not leave
+            # the job stuck in "running" until the stale-job sweep.
+            _fail(db, job, "RESOURCE_REJECTED: image unreadable")
             return job.status
 
         try:

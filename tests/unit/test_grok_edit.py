@@ -7,8 +7,9 @@ import json
 import httpx
 import pytest
 
+from services.api.app.config import get_settings
 from services.api.app.database import SessionLocal
-from services.api.app.models import Outfit, StylingRequest, WardrobeItem
+from services.api.app.models import GenerationJob, Outfit, StylingRequest, WardrobeItem
 from smartmirror import media
 from smartmirror.providers.vton import ollabridge_cloud
 from smartmirror.providers.vton.base import ReferenceImage, TryOnRequest
@@ -226,32 +227,31 @@ def test_provider_posts_a_haul_clip(monkeypatch):
     assert result.images == [mp4]
 
 
-def test_cloud_tryon_attaches_wardrobe_photos(store):
-    """A cloud try-on sends the garment file, not only its name."""
+def _seed_cloud_job(store, profile="p-grok"):
     with SessionLocal() as db:
         photo = media.ingest(
             db,
             store,
-            profile_id="p-grok",
+            profile_id=profile,
             kind="garment",
             data=jpeg(color=(4, 5, 6)),
             ttl_hours=None,
         )
         dress = WardrobeItem(
-            profile_id="p-grok",
+            profile_id=profile,
             category="dress",
             color="black",
             metadata_json={"name": "Black silk slip dress"},
             image_asset_id=photo.id,
         )
         coat = WardrobeItem(
-            profile_id="p-grok",
+            profile_id=profile,
             category="outerwear",
             color="camel",
             metadata_json={"name": "Camel coat"},
         )
         db.add_all([dress, coat])
-        req = StylingRequest(profile_id="p-grok", prompt="dinner", normalized_intent={})
+        req = StylingRequest(profile_id=profile, prompt="dinner", normalized_intent={})
         db.add(req)
         db.flush()
         outfit = Outfit(
@@ -259,34 +259,91 @@ def test_cloud_tryon_attaches_wardrobe_photos(store):
         )
         db.add(outfit)
         db.commit()
-        capture = media.ingest(
-            db, store, profile_id="p-grok", kind="capture", data=jpeg(), ttl_hours=24
-        )
+        capture = media.ingest(db, store, profile_id=profile, kind="capture", data=jpeg(), ttl_hours=24)
         job = tryon.create_tryon_job(
             db,
-            profile_id="p-grok",
+            profile_id=profile,
             outfit_id=outfit.id,
             body_capture_ref=capture.id,
             instruction="evening light",
         )
+        return job.id, photo.storage_key
 
-    class CloudFake:
-        name = "ollabridge-cloud"
 
-        def __init__(self):
-            self.requests = []
+class _CloudFake:
+    name = "ollabridge-cloud"
 
-        async def generate(self, request):
-            self.requests.append(request)
-            from smartmirror.providers.vton.base import TryOnResult
+    def __init__(self):
+        self.requests = []
 
-            return TryOnResult(images=[jpeg(color=(10, 120, 10), exif=False)], provider=self.name)
+    async def generate(self, request):
+        self.requests.append(request)
+        from smartmirror.providers.vton.base import TryOnResult
 
-    fake = CloudFake()
-    assert asyncio.run(tryon.run_tryon_job(job.id, provider=fake, store=store)) == "succeeded"
+        return TryOnResult(images=[jpeg(color=(10, 120, 10), exif=False)], provider=self.name)
+
+
+def test_cloud_tryon_attaches_wardrobe_photos(store, monkeypatch):
+    """A cloud try-on sends the garment file once Grok is explicitly on."""
+    monkeypatch.setattr(get_settings(), "smartmirror_grok_imagine", True)
+    job_id, _key = _seed_cloud_job(store)
+
+    fake = _CloudFake()
+    assert asyncio.run(tryon.run_tryon_job(job_id, provider=fake, store=store)) == "succeeded"
     (sent,) = fake.requests
     assert len(sent.references) == 1
     assert sent.references[0].label == "Black silk slip dress"
     assert "image 2 (Black silk slip dress)" in sent.instruction
     assert "Camel coat" in sent.instruction
     assert "evening light" in sent.instruction
+
+
+def test_cloud_tryon_stays_text_only_until_grok_is_enabled(store):
+    job_id, _key = _seed_cloud_job(store, profile="p-legacy")
+    fake = _CloudFake()
+    assert asyncio.run(tryon.run_tryon_job(job_id, provider=fake, store=store)) == "succeeded"
+    (sent,) = fake.requests
+    assert sent.references == []
+    assert "image 2" not in sent.instruction
+    assert "Black silk slip dress" in sent.instruction
+    body = cloud_edit_body(
+        person=sent.person_image,
+        person_type=sent.person_content_type,
+        prompt=sent.instruction,
+        references=sent.references,
+    )
+    assert body["model"] == "edit-default"
+    assert "references" not in body
+
+
+def test_missing_garment_file_falls_back_to_words(store, monkeypatch):
+    monkeypatch.setattr(get_settings(), "smartmirror_grok_imagine", True)
+    job_id, key = _seed_cloud_job(store, profile="p-missing")
+    (store.root / key).unlink()
+    fake = _CloudFake()
+    assert asyncio.run(tryon.run_tryon_job(job_id, provider=fake, store=store)) == "succeeded"
+    (sent,) = fake.requests
+    assert sent.references == []
+    assert "Black silk slip dress" in sent.instruction
+    with SessionLocal() as db:
+        assert db.get(GenerationJob, job_id).status == "succeeded"
+
+
+def test_garment_storage_error_fails_the_job(store, monkeypatch):
+    monkeypatch.setattr(get_settings(), "smartmirror_grok_imagine", True)
+    job_id, _key = _seed_cloud_job(store, profile="p-disk")
+
+    class DiskError(store.__class__):
+        def get(self, key):
+            if key.startswith("garment/"):
+                raise OSError("disk failure")
+            return super().get(key)
+
+    broken = DiskError(store.root)
+    fake = _CloudFake()
+    assert asyncio.run(tryon.run_tryon_job(job_id, provider=fake, store=broken)) == "failed"
+    assert fake.requests == []
+    with SessionLocal() as db:
+        job = db.get(GenerationJob, job_id)
+        assert job.status == "failed"
+        assert job.error_code.startswith("RESOURCE_REJECTED")

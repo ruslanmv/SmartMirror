@@ -132,7 +132,7 @@ The cloud maps `image` + `references` to xAI `reference_images` and polls xAI's 
 
 | Source | Ready? | How it enters the edit |
 |---|---|---|
-| Wardrobe item with `image_asset_id` | **Yes, this change** | `run_tryon_job`, only when the provider name is `ollabridge-cloud`, loads up to 4 photos. A missing asset falls back to words. HomePilot try-on stays text-only. |
+| Wardrobe item with `image_asset_id` | **Yes, when opted in** | `run_tryon_job` loads up to 4 photos only when the provider is `ollabridge-cloud` **and** `SMARTMIRROR_GROK_IMAGINE=true` (default false). A missing file or expired asset falls back to words. Any other storage error fails the job. HomePilot try-on stays text-only. With the flag off, the cloud body stays model `edit-default` and sends no garment bytes, so a cloud that has not enabled Grok keeps working. |
 | Amazon link-out | **No pixels** | A search URL cannot be tried on. Leave it as the phone QR. |
 | Amazon Creators API | **Not built** | When the Associates account qualifies, `GetItems` returns a catalogue image. SmartMirror downloads that image itself, stores it like any garment photo, and passes the bytes as a `HaulFrame`. The cloud never calls Amazon. |
 | Owner-supplied product photo | **Fits the same frame** | A photo the owner already added (the "I bought this" / product-image path) is a garment asset. No new upload protocol. |
