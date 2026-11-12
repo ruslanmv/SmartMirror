@@ -21,7 +21,7 @@ class HomePilotNodeEditProvider(VirtualTryOnProvider):
     NODE_MANIFEST_ALLOW_HOSTS on HomePilot. A visual preview, not a fit guarantee.
     """
 
-    name = "homepilot"
+    name = "homepilot-node"
 
     def __init__(self, base_url: str, api_key: str = "", timeout_s: float = 600.0, poll_s: float = 1.5):
         self.base_url = base_url.rstrip("/")

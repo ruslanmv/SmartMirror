@@ -54,17 +54,47 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 @app.get("/health")
 def health() -> dict:
-    return {"ok": True, "service": "smartmirror", "version": "0.1.0"}
+    from smartmirror.providers.vton import provider_status
+
+    return {"ok": True, "service": "smartmirror", "version": "0.1.0", **provider_status()}
 
 
 @app.get("/v1/capabilities")
 def capabilities() -> dict:
+    from smartmirror.providers.vton import provider_status
+
+    status = provider_status()
     return {
         "wardrobe": True,
         "style_suggest": True,
         "tryon_jobs": True,
         "homepilot_mcp": True,
         "echo_camera_required": False,
+        "compute": {
+            "production": "homepilot",
+            "homepilot_base_url": status["homepilot_base_url"],
+            "image_provider": status["image_provider"],
+            "provider_ready": status["provider_ready"],
+            "optional_cloud_swap": "ollabridge-cloud (Grok Imagine — development)",
+            "homepilot_requires": "edit-session sidecar (EDIT_SESSION_URL); else /v1/edit-sessions is 503",
+        },
+    }
+
+
+@app.get("/v1/compute/probe")
+async def compute_probe() -> dict:
+    """Probe the configured HomePilot edit-session plane (async)."""
+    from smartmirror.providers.vton import get_tryon_provider
+    from smartmirror.providers.vton.homepilot import HomePilotEditSessionProvider
+
+    provider = get_tryon_provider()
+    if isinstance(provider, HomePilotEditSessionProvider):
+        probe = await provider.probe()
+        return {"provider": provider.name, "homepilot": provider.base_url, **probe}
+    return {
+        "provider": provider.name if provider else None,
+        "ok": provider is not None,
+        "detail": "non-HomePilot provider; no edit-session probe",
     }
 
 

@@ -82,16 +82,10 @@ def _garment_references(
 
 
 def get_provider() -> VirtualTryOnProvider | None:
-    s = get_settings()
-    if s.smartmirror_image_provider == "homepilot":
-        from smartmirror.providers.vton.homepilot_node import HomePilotNodeEditProvider
+    """Resolve the configured try-on backend (HomePilot production by default)."""
+    from smartmirror.providers.vton.factory import get_tryon_provider
 
-        return HomePilotNodeEditProvider(s.homepilot_base_url, s.homepilot_api_key, timeout_s=s.smartmirror_tryon_timeout_s)
-    if s.smartmirror_image_provider == "ollabridge-cloud":
-        from smartmirror.providers.vton.ollabridge_cloud import OllaBridgeCloudEditProvider
-
-        return OllaBridgeCloudEditProvider(s.ollabridge_base_url, s.ollabridge_token, timeout_s=s.smartmirror_tryon_timeout_s)
-    return None
+    return get_tryon_provider()
 
 
 def create_tryon_job(db: Session, *, profile_id: str, outfit_id: str, body_capture_ref: str, instruction: str) -> GenerationJob:
