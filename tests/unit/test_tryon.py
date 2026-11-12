@@ -219,7 +219,7 @@ def test_homepilot_provider_runs_images_edit(monkeypatch):
 
     result = asyncio.run(HomePilotNodeEditProvider("http://hp", "k", poll_s=0).generate(
         TryOnRequest(person_image=jpeg(), person_content_type="image/jpeg", instruction="x")))
-    assert result.images == [png] and result.provider == "homepilot"
+    assert result.images == [png] and result.provider == "homepilot-node"
 
 
 @pytest.mark.parametrize(

@@ -35,7 +35,7 @@ class HomePilotEditSessionProvider(VirtualTryOnProvider):
     Clothing-swap with garment *pixels* is the optional OllaBridge/Grok path.
     """
 
-    name = "homepilot-edit-session"
+    name = "homepilot"
 
     def __init__(
         self,
@@ -122,7 +122,8 @@ class HomePilotEditSessionProvider(VirtualTryOnProvider):
                     f"at {self.base_url} (POST /v1/edit-sessions returned 503). "
                     "On production, set EDIT_SESSION_URL to a live sidecar, or temporarily "
                     "use SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud for Grok clothing-swap tests. "
-                    "Root /chat and /upload are not usable from API clients on the current nginx."
+                    "Root /chat and /upload are not usable from API clients on the current nginx. "
+                    "Local GPU: SMARTMIRROR_IMAGE_PROVIDER=homepilot-node."
                 )
             upload.raise_for_status()
 
@@ -139,20 +140,30 @@ class HomePilotEditSessionProvider(VirtualTryOnProvider):
             edit.raise_for_status()
             data = edit.json()
 
-        urls: list[str] = []
-        for key in ("images", "image_urls", "results", "urls"):
-            value = data.get(key)
-            if isinstance(value, list):
-                for item in value:
-                    if isinstance(item, str):
-                        urls.append(self._absolute(item))
-                    elif isinstance(item, dict) and item.get("url"):
-                        urls.append(self._absolute(str(item["url"])))
-        if not urls and isinstance(data.get("active_image_url"), str):
-            urls.append(self._absolute(data["active_image_url"]))
+            urls: list[str] = []
+            for key in ("images", "image_urls", "results", "urls"):
+                value = data.get(key)
+                if isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, str):
+                            urls.append(self._absolute(item))
+                        elif isinstance(item, dict) and item.get("url"):
+                            urls.append(self._absolute(str(item["url"])))
+            if not urls and isinstance(data.get("active_image_url"), str):
+                urls.append(self._absolute(data["active_image_url"]))
+
+            images: list[bytes] = []
+            for url in urls:
+                img = await client.get(url, headers=self._headers())
+                img.raise_for_status()
+                images.append(img.content)
+
+        if not images:
+            raise HomePilotProviderError("IMAGE_EDIT_FAILED: no image produced")
 
         return TryOnResult(
             image_urls=urls,
+            images=images,
             provider=self.name,
             metadata={"session_id": session_id, "homepilot": self.base_url},
         )

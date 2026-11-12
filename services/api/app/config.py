@@ -25,11 +25,6 @@ class Settings(BaseSettings):
     homepilot_base_url: str = "https://homepilot.ruslanmv.com"
     homepilot_api_key: str = ""
 
-    # Try-on backend: "homepilot" (edit-session on HomePilot — production),
-    # "ollabridge-cloud" (optional Grok Imagine clothing-swap path for experiments),
-    # or "none".
-    smartmirror_image_provider: str = "homepilot"
-
     ollabridge_base_url: str = "https://api.ollabridge.com"
     ollabridge_token: str = ""
     ollabridge_node_id: str = ""
@@ -47,7 +42,11 @@ class Settings(BaseSettings):
     smartmirror_storage: str = "local"
     smartmirror_media_dir: str = "./media"
 
-    # AI try-on: "homepilot" (images.edit node job on this PC), "ollabridge-cloud", or "none".
+    # Try-on backend:
+    #   "homepilot"              — production edit-session API (HF web edition)
+    #   "homepilot-node"         — local HomePilot /v1/node/jobs images.edit
+    #   "ollabridge-cloud"       — optional Grok Imagine clothing-swap (dev)
+    #   "none"
     smartmirror_image_provider: str = "homepilot"
     # Attach garment photos and select grok-imagine-image-2.0 on the cloud path.
     # Off until OllaBridge Cloud has OLLABRIDGE_GROK_IMAGINE_ENABLED on. While off,

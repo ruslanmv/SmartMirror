@@ -10,6 +10,13 @@ SmartMirror defaults to that host (`HOMEPILOT_BASE_URL`,
 `/v1/edit-sessions/{id}/image` and `/message` API
 (`HomePilotEditSessionProvider`).
 
+| `SMARTMIRROR_IMAGE_PROVIDER` | Backend |
+|---|---|
+| `homepilot` (default) | Production edit-session API on HomePilot HF web edition |
+| `homepilot-node` | Local HomePilot `/v1/node/jobs` `images.edit` (single-PC GPU) |
+| `ollabridge-cloud` | Optional Grok Imagine clothing-swap (development) |
+| `none` | Disabled |
+
 ### Production gap (verified Nov 2026)
 
 | Call | Result on `homepilot.ruslanmv.com` |

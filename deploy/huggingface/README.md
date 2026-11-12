@@ -8,6 +8,7 @@ on port **7860**. Packaging lives in `hf/`; this folder uploads it.
 | Path | Role | Target |
 | --- | --- | --- |
 | **HomePilot** (default) | Production try-on / edit-session | [homepilot.ruslanmv.com](https://homepilot.ruslanmv.com/) — HF web edition [`claude/homepilot-hf-web-edition-410aea`](https://github.com/ruslanmv/HomePilot/tree/claude/homepilot-hf-web-edition-410aea) |
+| **HomePilot node** | Local single-PC `images.edit` | `SMARTMIRROR_IMAGE_PROVIDER=homepilot-node` + local `HOMEPILOT_BASE_URL` |
 | **OllaBridge Cloud + Grok Imagine** | Optional clothing-swap experiments | Set `SMARTMIRROR_IMAGE_PROVIDER=ollabridge-cloud` + `OLLABRIDGE_TOKEN` |
 
 The Space defaults to HomePilot. Do **not** put `XAI_API_KEY` on the Space.
