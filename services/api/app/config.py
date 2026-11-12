@@ -42,6 +42,10 @@ class Settings(BaseSettings):
 
     # AI try-on: "homepilot" (images.edit node job on this PC), "ollabridge-cloud", or "none".
     smartmirror_image_provider: str = "homepilot"
+    # Attach garment photos and select grok-imagine-image-2.0 on the cloud path.
+    # Off until OllaBridge Cloud has OLLABRIDGE_GROK_IMAGINE_ENABLED on. While off,
+    # a cloud try-on stays a text prompt on model edit-default.
+    smartmirror_grok_imagine: bool = False
     # Run try-on jobs in the API process as soon as they are created (single-PC setup).
     smartmirror_inline_jobs: bool = True
     smartmirror_tryon_timeout_s: int = 600

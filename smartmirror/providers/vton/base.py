@@ -6,12 +6,25 @@ from typing import Any
 
 
 @dataclass
+class ReferenceImage:
+    """A garment photo sent beside the person, in request order.
+
+    Image 1 is always the person. The first reference is image 2.
+    """
+
+    data: bytes
+    content_type: str
+    label: str = ""
+
+
+@dataclass
 class TryOnRequest:
     person_image: bytes
     person_content_type: str
     garment_refs: list[str] = field(default_factory=list)
     instruction: str = ""
     preserve_identity: bool = True
+    references: list[ReferenceImage] = field(default_factory=list)
 
 
 @dataclass

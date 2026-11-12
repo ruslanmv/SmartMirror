@@ -20,7 +20,8 @@ from services.api.app.config import get_settings
 from services.api.app.models import GenerationJob, Outfit, WardrobeItem
 from smartmirror import media
 from smartmirror.privacy import record
-from smartmirror.providers.vton.base import TryOnRequest, VirtualTryOnProvider
+from smartmirror.providers.vton.base import ReferenceImage, TryOnRequest, VirtualTryOnProvider
+from smartmirror.providers.vton.grok_edit import MAX_GARMENTS, swap_prompt
 from smartmirror.storage import MediaStore, get_store
 
 log = logging.getLogger("smartmirror.tryon")
@@ -45,6 +46,39 @@ def build_instruction(items: list[WardrobeItem], extra: str = "") -> str:
     if extra.strip():
         text += f" {extra.strip()[:300]}"
     return text
+
+
+def _garment_references(
+    db: Session, store: MediaStore, items: list[WardrobeItem], profile_id: str
+) -> tuple[list[ReferenceImage], list[str]]:
+    """Photos for the cloud edit, and labels of pieces that have no photo.
+
+    At most ``MAX_GARMENTS`` photos. A missing or expired asset is skipped
+    and that piece is described in words instead.
+    """
+    references: list[ReferenceImage] = []
+    unseen: list[str] = []
+    for item in items:
+        asset_id = item.image_asset_id
+        if not asset_id or len(references) >= MAX_GARMENTS:
+            unseen.append(item_label(item))
+            continue
+        try:
+            data, asset = media.load(db, store, asset_id, profile_id)
+        except media.MediaRejected:
+            unseen.append(item_label(item))
+            continue
+        except FileNotFoundError:
+            # The Asset row outlived the file. Describe the piece in words.
+            unseen.append(item_label(item))
+            continue
+        except OSError as exc:
+            raise media.MediaRejected("RESOURCE_REJECTED: garment photo unreadable") from exc
+        if not str(asset.content_type).startswith("image/"):
+            unseen.append(item_label(item))
+            continue
+        references.append(ReferenceImage(data=data, content_type=asset.content_type, label=item_label(item)))
+    return references, unseen
 
 
 def get_provider() -> VirtualTryOnProvider | None:
@@ -126,14 +160,29 @@ async def run_tryon_job(
             items = list(db.scalars(select(WardrobeItem).where(WardrobeItem.id.in_(outfit.item_ids))))
             items.sort(key=lambda i: outfit.item_ids.index(i.id))
             photo, asset = media.load(db, store, str(req.get("body_capture_ref")), job.profile_id)
+            extra = str(req.get("instruction") or "")
+            references: list[ReferenceImage] = []
+            instruction = build_instruction(items, extra)
+            # Garment pixels go out only when the owner has turned Grok on.
+            # HomePilot stays text-only. A cloud without the adapter stays on edit-default.
+            if provider.name == "ollabridge-cloud" and get_settings().smartmirror_grok_imagine:
+                references, unseen = _garment_references(db, store, items, job.profile_id)
+                if references:
+                    instruction = swap_prompt(references, also=unseen, extra=extra)
             request = TryOnRequest(
                 person_image=photo,
                 person_content_type=asset.content_type,
                 garment_refs=[i.id for i in items],
-                instruction=build_instruction(items, str(req.get("instruction") or "")),
+                instruction=instruction,
+                references=references,
             )
         except media.MediaRejected as exc:
             _fail(db, job, str(exc))
+            return job.status
+        except OSError:
+            # A missing body photo, or any other storage error, must not leave
+            # the job stuck in "running" until the stale-job sweep.
+            _fail(db, job, "RESOURCE_REJECTED: image unreadable")
             return job.status
 
         try:

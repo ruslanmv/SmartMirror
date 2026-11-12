@@ -30,3 +30,5 @@ Echo
 ```
 
 The Echo client must never receive a direct LAN HomePilot URL as its normal remote configuration.
+
+Clothing swap and an Amazon try-on haul go through the same `/v1/images/edits` job, with garment photos as `references` and Grok Imagine selected on the cloud. See `docs/architecture/grok-tryon-haul.md`.
